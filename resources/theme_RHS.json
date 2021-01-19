@@ -1,0 +1,162 @@
+{
+    "daily_cycle_temp":{
+        "colors":[
+            "#000000",
+            "#d52b1eaa",
+            "#d52b1e77",
+            "#d52b1e44"
+        ]
+    },
+    "daily_cycle_dwpc":{
+        "colors":[
+            "#000000",
+            "#01689baa",
+            "#01689b77",
+            "#01689b44"
+        ]
+    },
+    "daily_cycle_relh":{
+        "colors":[
+            "#000000",
+            "#a90061aa",
+            "#a9006177",
+            "#a9006144"
+        ]
+    },
+    "daily_cycle_wspd":{
+        "colors":[
+            "#000000",
+            "#39870caa",
+            "#39870c77",
+            "#39870c44"
+        ]
+    },
+    "daily_cycle_vism":{
+        "colors":[
+            "#000000",
+            "#42145faa",
+            "#42145f77",
+            "#42145f44"
+        ]
+    },
+    "daily_cycle_ceiling":{
+        "colors":[
+            "#000000",
+            "#e17000aa",
+            "#e1700077",
+            "#e1700044"
+        ]
+    },
+    "wind_compass_dir_freq":{
+        "colors":"#39870c",
+        "edgecolor":"k"
+    },
+    "wind_compass_spd":{
+        "colors":[
+            "#000000",
+            "#39870caa",
+            "#39870c77",
+            "#39870c44"
+        ]
+    },
+    "frequency_gust":{
+        "colors":"#39870c",
+        "edgecolor":"k"
+    },
+    "frequency_cloud_type":{
+        "colors":{
+            "SKC":"#007bc7",
+            "NCD":"#007bc7",
+            "CLR":"#007bc7",
+            "NSC":"#8fcae7",
+            "FEW":"#8fcae7",
+            "SCT":"#ddeff8",
+            "BKN":"#eef7fb",
+            "OVC":"#b4b4b4",
+            "VV":"#696969"
+        },
+        "edgecolor":"k"
+    },
+    "frequency_color":{
+        "colors":{
+            "BLU+":"#8fcae7",
+            "BLU":"#007bc7",
+            "WHT":"#ffffff",
+            "GRN":"#39870c",
+            "YLO":"#f9e11e",
+            "YLO1":"#f9e11e",
+            "YLO2":"#ffb612",
+            "AMB":"#e17000",
+            "RED":"#d52b1e"
+        },
+        "edgecolor":"k"
+    },
+    "frequency_percipitation":{
+        "colors":{
+            "RA":"#39870c",
+            "DZ":"#777c00",
+            "SN":"#01689b",
+            "IC":"#a90061",
+            "PL":"#f9e11e",
+            "GR":"#e17000",
+            "GS":"#ffb612",
+            "UP":"#696969",
+            "FZRA":"#d52b1e",
+            "FZDZ":"#ca005d",
+            "FZFG":"#f092cd"
+        },
+        "edgecolor":"k",
+        "__comment__":{
+            "RA":"Rain, Groen",
+            "DZ":"Drizzle, Mosgroen",
+            "SN":"Snow, Donkerblauw",
+            "IC":"Ice Crystals, Violet",
+            "PL":"Ice Pellets, Geel",
+            "GR":"Hail, Oranje",
+            "GS":"Graupel, Donkergeel",
+            "UP":"Unknown Precipitation, Grijs 6",
+            "FZRA":"Freezing Rain, Rood",
+            "FZDZ":"Freezing Drizzle, Robijnrood",
+            "FZFG":"Freezing Fog, Roze"
+        }
+    },
+    "frequency_sigwx":{
+        "colors":{
+            "TS":"#42145fff",
+            "FZ":"#d52b1eff",
+            "SH":"#39870cff",
+            "FG":"#ffb612ff",
+            "VA":"#673327ff",
+            "BR":"#f9e11eff",
+            "HZ":"#f9e11e99",
+            "DU":"#777c0099",
+            "FU":"#67332799",
+            "SA":"#94710a99",
+            "PY":"#76d2b6ff",
+            "SQ":"#007bc7ff",
+            "PO":"#777c0099",
+            "DS":"#777c00ff",
+            "SS":"#94710aff",
+            "FC":"#a90061ff"
+        },
+        "edgecolor":"k",
+        "__comment__":{
+            "TS":"Thunderstorm, Paars",
+            "FZ":"Freezing, Rood",
+            "SH":"Showers, Groen",
+            "FG":"Fog, Donkergeel",
+            "VA":"Volcanic Ash, Donkerbruin",
+            "BR":"Mist, Geel",
+            "HZ":"Haze, Geel (dekking 60%)",
+            "DU":"Dust, Mosgroen (dekking 60%)",
+            "FU":"Smoke, Donkerbruin (dekking 60%)",
+            "SA":"Sand, Bruin (dekking 60%)",
+            "PY":"Spray, Mintgroen",
+            "SQ":"Squall, Hemelblauw",
+            "PO":"Light Dust/Sand Whrils, Mosgroen (dekking 60%)",
+            "DS":"Duststorm, Mosgroen",
+            "SS":"Sandstorm, Bruin",
+            "FC":"Funnel Cloud, Violet"
+        }
+    }
+}
