@@ -1,3 +1,6 @@
+# CliMETAR specifics
+natural_earth/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
