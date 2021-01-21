@@ -12,7 +12,7 @@ CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab
 ```
 git clone https://git.mindef.nl/djgommers/climetar.git
 ```
-4. Open de CliMETAR map en begin bij het notebook `00. Data Retrieval.ipynb`
+4. Open de CliMETAR map en begin bij het notebook `00. Installeren & Introductie`
 
 ## Databronnen
 * Metar Berichten:
