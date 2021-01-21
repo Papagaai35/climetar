@@ -1,5 +1,6 @@
 # CliMETAR specifics
-natural_earth/
+resources/ne*.zip
+resources/NE*.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
