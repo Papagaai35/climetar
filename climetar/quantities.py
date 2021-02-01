@@ -186,8 +186,18 @@ class Direction(Quantity):
         'deg': 1,
         'rad': np.pi/180,
         'compass': [
-            lambda cmps: compass_dirs.get(cmps,np.nan),
-            lambda dirdeg: min(compass_dirs.items(),
+            lambda cmps: {
+        'N':  0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5,
+        'E': 90.0, 'ESE':112.5, 'SE':135.0, 'SSE':157.5,
+        'S':180.0, 'SSW':202.5, 'SW':225.0, 'WSW':247.5,
+        'W':270.0, 'WNW':292.5, 'NW':315.0, 'WNW':337.5
+    }.get(cmps,np.nan),
+            lambda dirdeg: min({
+        'N':  0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5,
+        'E': 90.0, 'ESE':112.5, 'SE':135.0, 'SSE':157.5,
+        'S':180.0, 'SSW':202.5, 'SW':225.0, 'WSW':247.5,
+        'W':270.0, 'WNW':292.5, 'NW':315.0, 'WNW':337.5
+    }.items(),
                 key=(lambda _, v: abs(v - target)))[0]
         ]
     }

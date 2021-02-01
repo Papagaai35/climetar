@@ -185,8 +185,7 @@ class MetarPlotter(object):
         self.pdf['wind_dir_catrad'] = self.pdf.wind_dir_catdeg/180*np.pi
     
     def daily_cycle_hourly_plotter(
-            self,ax,variable,unit,quantity,title='',
-            ylim=None
+            self,ax,variable,unit,quantity,title='',ylim=None,
             colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.process_colors(
             'daily_cycle_plotter',colors,edgecolor,linewidth,

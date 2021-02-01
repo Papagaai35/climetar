@@ -1,6 +1,8 @@
 # CliMETAR specifics
 resources/ne*.zip
 resources/NE*.zip
+data/*.metar
+downloads/*.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
