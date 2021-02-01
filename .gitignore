@@ -2,7 +2,8 @@
 resources/ne*.zip
 resources/NE*.zip
 data/*.metar
-downloads/*.*
+downloads/*.txt
+downloads/*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
