@@ -47,7 +47,7 @@ class MetarFiles(object):
             filedirbase = os.path.basename(filedir)
 
             station,timespan = filedirbase.strip(), filebase.strip()
-            if station in self.repo['stations'] or station in self.repo['aliasses']:
+            if station in self.repo['stations'] or station in self.repo['aliases']:
                 if station not in self.index:
                     self.index[station] = {}
                 if timespan.isnumeric() and len(timespan)==4:
