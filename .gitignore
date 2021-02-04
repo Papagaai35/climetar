@@ -4,6 +4,8 @@ resources/NE*.zip
 data/*.metar
 downloads/*.txt
 downloads/*.csv
+Untitled*.ipynb
+results/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
