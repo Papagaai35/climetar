@@ -1,15 +1,72 @@
 \documentclass[twoside=false,footinclude=false]{scrartcl}
 
 \usepackage{subfiles}
-\usepackage{roboto}
+\usepackage{fontspec}
+\newfontfamily\Roboto{Roboto}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Regular,
+    BoldFont=*-Bold,
+    ItalicFont=*-Italic,
+    BoldItalicFont=*-BoldItalic]
+\newfontfamily\RobotoBlack{Roboto}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Black,
+    ItalicFont=*-BlackItalic]
+\newfontfamily\RobotoBold{Roboto}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Bold,
+    ItalicFont=*-BoldItalic]
+\newfontfamily\RobotoMedium{Roboto}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Medium,
+    ItalicFont=*-MediumItalic]
+\newfontfamily\RobotoLight{Roboto}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Light,
+    ItalicFont=*-LightItalic]
+\newfontfamily\RobotoThin{Roboto}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Thin,
+    ItalicFont=*-ThinItalic]
+\newfontfamily\RobotoCondensed{RobotoCondensed}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Regular,
+    BoldFont=*-Bold,
+    ItalicFont=*-Italic,
+    BoldItalicFont=*-BoldItalic]
+\newfontfamily\RobotoCondensedLight{RobotoCondensed}[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Light,
+    ItalicFont=*-LightItalic]
+\setmainfont[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Regular,
+    BoldFont=*-Bold,
+    ItalicFont=*-Italic,
+    BoldItalicFont=*-BoldItalic]{Roboto}
+\setsansfont[
+    Path=%(fontfolder)s,
+    Extension=.ttf,
+    UprightFont=*-Regular,
+    BoldFont=*-Bold,
+    ItalicFont=*-Italic,
+    BoldItalicFont=*-BoldItalic]{Roboto}
 \usepackage[utf8]{inputenc}
 \usepackage[TS1,T1]{fontenc}
 \usepackage[font=sf]{floatrow}
 \usepackage[left=25mm, right=25mm, top=25mm, bottom=25mm]{geometry}
 \usepackage[x11names,table]{xcolor}
-\usepackage{amsfonts,amsmath,amssymb,appendix,bbold,calc,etoolbox,fancyvrb,float,framed,fvextra,graphicx,hyperref,ifthen,ifplatform,import,keyval,kvoptions,lineno,multirow,natbib,pdfpages,pdftexcmds,sectsty,setspace,siunitx,textcomp,todonotes,underscore,upquote,url,xstring}
+\usepackage{amsfonts,amsmath,amssymb,appendix,bbold,calc,etoolbox,fancyvrb,float,framed,fvextra,graphicx,hyperref,ifthen,ifplatform,import,keyval,kvoptions,lineno,multirow,natbib,pdfpages,pdftexcmds,sectsty,setspace,textcomp,underscore,upquote,url,xstring}
 \usepackage{natbib}
-\usepackage[tikz]{bclogo}
 \usepackage{wrapfig}
 \usepackage{dirtytalk}
 \usepackage{tabu}

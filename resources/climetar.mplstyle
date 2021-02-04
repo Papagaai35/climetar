@@ -1,0 +1,28 @@
+figure.figsize : 6.3, 3.5
+# figure.figsize is width, height in inches (1in==2.54cm per definition)
+figure.dpi: 150
+
+lines.linewidth: 1.0
+axes.linewidth: 0.5
+
+font.family: sans-serif
+font.weight: 500
+font.size: 7
+font.sans-serif: Open Sans, Droid Sans, Arial, Helvetica, DejaVu Sans, Verdana, Lucida Grande, sans-serif
+font.monospace: DejaVu Sans Mono, Bitstream Vera Sans Mono, Computer Modern Typewriter, Andale Mono, Nimbus Mono L, Courier New, Courier, Fixed, Terminal, monospace
+
+patch.linewidth: 0
+
+legend.framealpha: 1.0
+legend.edgecolor: 1.0
+legend.fancybox: False
+
+figure.subplot.left: 0.01
+figure.subplot.right: 0.99
+figure.subplot.bottom: 0.01
+figure.subplot.top: 0.99
+figure.subplot.wspace: 0.05
+figure.subplot.hspace: 0.05
+
+savefig.dpi: 300
+savefig.pad_inches: 0.05
