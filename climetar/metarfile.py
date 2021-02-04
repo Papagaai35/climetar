@@ -11,7 +11,7 @@ def import_files(glob_pattern,rerun_parsed=False,linenr=0):
     imported = []
     for filepath in glob.iglob(glob_pattern):
         filedir, filename = os.path.split(filepath)
-        print(filedir, filename)
+        print(filepath)
         filebase, fileext = os.path.splitext(str(filename))
         
         if 'parsed' in filebase and not rerun_parsed:
@@ -24,9 +24,10 @@ def import_files(glob_pattern,rerun_parsed=False,linenr=0):
             imported.append(filepath)
             print('Imported "%s"'%filepath)
         
-            new_filename = filebase+'.parsed'
-            new_filename += fileext if fileext!='' else '.csv'
-            os.rename(filepath,os.path.join(filedir,new_filename))
+            if 'parsed' in filebase:
+                new_filename = filebase+'.parsed'
+                new_filename += fileext if fileext!='' else '.csv'
+                os.rename(filepath,os.path.join(filedir,new_filename))
         return imported
 
 class MetarFiles(object):
@@ -69,12 +70,9 @@ class MetarFiles(object):
         with open(file,'r') as fh:
             self.repo = json.load(fh)
     
-    
-    
     def import_chunck(self,indf,chuncknr=0):
         metar_parsed = []
         for index, row in indf.iterrows():
-            metar_parsed = []
             try:
                 mo = Metar(row['metar'],year=row['valid'].year,month=row['valid'].month,stationid=row['station'],chunck=chuncknr,linenr=index,debug=False)
                 mo.parse()
@@ -82,6 +80,7 @@ class MetarFiles(object):
                 metar_parsed.append(mo.to_dict())
             except Exception as exc:
                 raise ValueError('Could not parse metar at index %d:%d:\n%s' % (chuncknr,index,line['metar'])) from exc
+        
         df = pd.DataFrame(metar_parsed)
         df['calc_color'] = Metar.calc_color(df.vis,df.sky_ceiling)
         df['relh'] = Metar.calc_relh(df.temp,df.dwpt)
@@ -103,8 +102,8 @@ class MetarFiles(object):
             if os.path.isfile(filename):
                 export_df.to_csv(filename,sep='\x1f',mode='a',header=False)
             else:
-                export_df.to_csv(filename,sep='\x1f',mode='a',header=False)
-    def import_raw(self,filepath,chunk=5e4):
+                export_df.to_csv(filename,sep='\x1f',mode='w',header=True)
+    def import_raw(self,filepath,chunk=3e4):
         versiontuple = lambda v: tuple(map(int, (v.split("."))))
         num_lines = sum(1 for line in open(filepath))
         df_kwargs = {'usecols':['station','valid','metar'],'dtype':str,'parse_dates':['valid'],'dayfirst':True}
@@ -130,34 +129,5 @@ class MetarFiles(object):
                 print('Parsed chunk %d'%c)
                 c+=1
         return True
-                
-            
-        
-                
-            
-    def import_raw_old(self,filepath,linenr=0):
-        with open(filepath,'r',newline='') as fh:
-            reader = csv.DictReader(itertools.islice(fh, linenr, None))
-            
-            for line in reader:
-                issued = datetime.datetime.strptime(line['valid'],'%Y-%m-%d %H:%M')
-                try:
-                    mo = Metar(line['metar'],year=issued.year,month=issued.month,stationid=line['station'],linenr=reader.line_num,debug=False)
-                    mo.parse()
-                    mo.handle()
-                    metar_parsed.append(mo.to_dict())
-                except Exception as exc:
-                    raise ValueError('Could not parse line %d:\n%s' % (reader.line_num,line['metar'])) from exc
-                if reader.line_num % 5e4 == 0:
-                    
-                        print('Wrote lines %d-%d to %s'%(export_df.linenr.min(),export_df.linenr.max(),filename))
-                        del export_df
-                del df, stations
-                metar_parsed = []
-    
-    @classmethod
-    def query(station,begin,end):
-        pass
-        
         
         
