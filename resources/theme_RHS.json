@@ -158,5 +158,63 @@
             "SS":"Sandstorm, Bruin",
             "FC":"Funnel Cloud, Violet"
         }
+    },
+    "monthly_cycle_tmin_tmax":{
+        "colors":{
+            "tmax": ["#d52b1eff","#d52b1eaa","#d52b1e77","#d52b1e44"],
+            "tmin": ["#01689bff","#01689baa","#01689b77","#01689b44"]
+        }
+    },
+    "monthly_cycle_wcet":{
+        "colors":{
+            "data": "k",
+            "limits": {
+                "-150": "#2a77b9",
+                "-55": "#ad6a00",
+                "-44": "#fde4cf",
+                "-28": "#a1b6dd",
+                "-9": "#83aaa1",
+                "100": "#ffffff00"
+            }
+        }
+    },
+    "monthly_cycle_wbgt":{
+        "colors":{
+            "data": "k",
+            "limits": {
+                "-150":"#8fcae7",
+                "25":"#39870c",
+                "27":"#ffffff",
+                "29":"#f9e11e",
+                "31":"#d52b1e",
+                "32":"k",
+                "100":"k"
+            }
+        },
+        "edgecolor":"k"
+    },
+    "monthly_cycle_relh":{
+        "colors":[
+            "#000000",
+            "#a90061aa",
+            "#a9006177",
+            "#a9006144"
+        ]
+    },
+    "monthly_cycle_vism":{
+        "colors":[
+            "#000000",
+            "#42145faa",
+            "#42145f77",
+            "#42145f44"
+        ]
+    },
+    "monthly_cycle_ceiling":{
+        "colors":[
+            "#000000",
+            "#e17000aa",
+            "#e1700077",
+            "#e1700044"
+        ]
     }
 }

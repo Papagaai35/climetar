@@ -36,7 +36,7 @@ class MetarTheme(object):
             else:
                 raise ValueError('Invalid theme passed:\n%s'%json_or_file)
     @classmethod
-    def to_color(cls,color,default_alpha=None,dict_keys=None,default_color='k'):
+    def to_color(cls,color,default_alpha=None,dict_keys=None,deep_dict_keys=None,default_color='k'):
         if default_alpha is None:
             default_alpha = [1]
         if hasattr(dict_keys,'__iter__') and not isinstance(dict_keys,list):
@@ -48,12 +48,15 @@ class MetarTheme(object):
             keys = sorted(list(set(list(color.keys())+dict_keys)))
             colordict = {}
             for k in keys:
+                ddk = None
+                if isinstance(deep_dict_keys,dict) and k in deep_dict_keys:
+                    ddk = deep_dict_keys[k]
                 if k in color:
-                    colordict[k] = cls.to_color(color[k],default_alpha)
+                    colordict[k] = cls.to_color(color[k],default_alpha,dict_keys=ddk)
                 elif 'default' in color:
-                    colordict[k] = cls.to_color(color['default'],default_alpha)
+                    colordict[k] = cls.to_color(color['default'],default_alpha,dict_keys=ddk)
                 else:
-                    colordict[k] = cls.to_color(default_color,default_alpha)
+                    colordict[k] = cls.to_color(default_color,default_alpha,dict_keys=ddk)
             return colordict
         elif isinstance(color,list) and dict_keys is None:
             if len(color)>=len(default_alpha):
@@ -102,7 +105,7 @@ class MetarTheme(object):
         e = self.to_color(e)[0] if e not in ['none',None] else 'none'
         l = 0 if e=='none' else l
         return c,e,l
-
+    
 class MetarPlotter(object):    
     def __init__(self,**settings):
         self.theme = MetarTheme(settings.get('theme'))
@@ -595,7 +598,388 @@ class MetarPlotter(object):
         ax.set_ylim(0,((s.max()*norm+thx*3)//2+1)*2)
         ax.set_title('Significant Weather');
         ax.set_ylabel('Frequency [%s]'%freq_unit)
-            
+    
+    def plot_monthly_cycle_tmin_tmax(self,ax,unit='°C',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_tmin_tmax',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15],dict_keys=['tmin','tmax'],
+        )
+        quantity=quantities.Temperature
+        dailydata = self.pdf.groupby(self.pdf.time.dt.date).agg(tmax=('temp','max'),tmin=('temp','min')).reset_index()
+        dailydata['time'] = pd.to_datetime(dailydata.time,dayfirst=True)
+        gbo = dailydata.groupby(dailydata.time.dt.month)
+        for var in ['tmin','tmax']:
+            data = gbo[var].quantile([.01,.05,.25,.5,.75,.95,.99])
+            data = self.convert_unit(quantity.units[unit],data).unstack()
+            data = data.append(data.loc[1].rename(13))
+            data = data.append(data.loc[12].rename(0))
+            data = data.sort_index()
+            ax.plot(data[.5],color=colors[var][0])
+            ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors[var][1])
+            ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors[var][2])
+            ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors[var][2])
+            ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors[var][3])
+            ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors[var][3])
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_title('Temperature (min/max) [%s]'%(unit))
+    def plot_monthly_cycle_wcet(self,ax,unit='°C',ylim=None,colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_wcet',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15],dict_keys=['data','limits'],deep_dict_keys={'limits':[]},
+        )
+        quantity = quantities.Temperature 
+        quantityWind = quantities.Speed
+        
+        limits = dict(sorted(map(lambda x: (float(x),x),colors['limits'].keys())))
+        for f1,s in limits.items():
+            if f1==max(limits.keys()):
+                break
+            f2 = list(filter(lambda x: x>f1,limits.keys()))[0]
+            ax.fill_between(x=[-1,14],y1=f1,y2=f2,zorder=-5,alpha=.6,color=colors['limits'][s][0][:3])
+        
+        t2m = self.convert_unit(quantity.units['°C'],self.pdf.temp)
+        wind = (self.convert_unit(quantityWind.units['km/h'],self.pdf.wind_spd))**0.16
+        self.pdf['wcet'] = 13.12 + 0.6215 * t2m - 11.37 * wind + 0.3965 * t2m * wind
+        gbo = self.pdf.dropna(subset=['wcet']).groupby(self.pdf.time.dt.month)
+        
+        data = gbo['wcet'].quantile([.01,.05,.25,.5,.75,.95,.99])
+        data = self.convert_unit(quantity.units[unit],data).unstack()
+        data = data.append(data.loc[1].rename(13))
+        data = data.append(data.loc[12].rename(0))
+        data = data.sort_index()
+        ax.plot(data[.5],color=colors['data'][0])
+        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors['data'][1])
+        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors['data'][2])
+        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors['data'][2])
+        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors['data'][3])
+        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors['data'][3])
+        
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+        else:
+            ax.set_ylim(np.floor(data[.01].min()/5)*5,
+                        np.ceil(data[.99].max()/5)*5)
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_title('Wind Chill Equivalent Temperature [%s]'%unit)
+    def plot_monthly_cycle_wbgt_simplified(self,ax,unit='°C',ylim=None,colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_wbgt',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15],dict_keys=['data','limits'],deep_dict_keys={'limits':[]},
+        )
+        quantity = quantities.Temperature 
+        
+        limits = dict(sorted(map(lambda x: (float(x),x),colors['limits'].keys())))
+        for f1,s in limits.items():
+            if f1==max(limits.keys()):
+                break
+            f2 = list(filter(lambda x: x>f1,limits.keys()))[0]
+            ax.fill_between(x=[-1,14],y1=f1,y2=f2,zorder=-5,alpha=.38,color=colors['limits'][s][0][:3])
+        
+        t2m = self.convert_unit(quantity.units['°C'],self.pdf.temp)
+        d2m = self.convert_unit(quantity.units['°C'],self.pdf.dwpt)
+        vp = 6.112 * np.exp((17.67*d2m)/(d2m+243.5))
+        self.pdf['wbgt'] = 0.657 * t2m + 0.393 * vp + 3.94
+        
+        dailydata = self.pdf.groupby(self.pdf.time.dt.date).agg(wbgt=('wbgt','max')).reset_index()
+        dailydata['time'] = pd.to_datetime(dailydata.time,dayfirst=True)
+        gbo = dailydata.groupby(dailydata.time.dt.month)       
+        data = gbo['wbgt'].quantile([.01,.05,.25,.5,.75,.95,.99])
+        data = self.convert_unit(quantity.units[unit],data).unstack()
+        data = data.append(data.loc[1].rename(13))
+        data = data.append(data.loc[12].rename(0))
+        data = data.sort_index()
+        ax.plot(data[.5],color=colors['data'][0],linewidth=linewidth*3)
+        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors['data'][1],edgecolor=edgecolor,linewidth=linewidth)
+        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors['data'][2],edgecolor=edgecolor,linewidth=linewidth)
+        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors['data'][2],edgecolor=edgecolor,linewidth=linewidth)
+        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors['data'][3],edgecolor=edgecolor,linewidth=linewidth)
+        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors['data'][3],edgecolor=edgecolor,linewidth=linewidth)
+        
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+        else:
+            ax.set_ylim(np.floor(data[.01].min()/5)*5,
+                        np.ceil(data[.99].max()/5)*5)
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_title('Wet Bulb Globe Temperature [%s]'%unit)
+    def plot_monthly_cycle_relh(self,ax,unit='%',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_relh',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        quantity = quantities.Fraction
+        
+        gbo = self.pdf.dropna(subset=['relh']).groupby(self.pdf.time.dt.month)
+        
+        data = gbo['relh'].quantile([.01,.05,.25,.5,.75,.95,.99])
+        data = self.convert_unit(quantity.units[unit],data).unstack()
+        data = data.append(data.loc[1].rename(13))
+        data = data.append(data.loc[12].rename(0))
+        data = data.sort_index()
+        ax.plot(data[.5],color=colors[0])
+        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors[1])
+        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors[3])
+        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors[3])
+        
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_ylim(0,100)
+        ax.set_title('Relative Humidity [%s]'%unit)
+    def plot_monthly_cycle_vism(self,ax,unit='km',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_vism',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        quantity = quantities.Distance
+        
+        gbo = self.pdf.dropna(subset=['vis']).groupby(self.pdf.time.dt.month)
+        
+        data = gbo['vis'].quantile([.01,.05,.25,.5,.75,.95,.99])
+        data = self.convert_unit(quantity.units[unit],data).unstack()
+        data = data.append(data.loc[1].rename(13))
+        data = data.append(data.loc[12].rename(0))
+        data = data.sort_index()
+        ax.plot(data[.5],color=colors[0])
+        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors[1])
+        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors[3])
+        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors[3])
+        
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_ylim(0,quantities.Distance(10,'km')[unit])
+        ax.set_title('Visibility [%s]'%unit)
+    def plot_monthly_cycle_ceiling(self,ax,unit='ft',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_ceiling',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        quantity = quantities.Height
+        
+        gbo = self.pdf.dropna(subset=['sky_ceiling']).groupby(self.pdf.time.dt.month)
+        
+        data = gbo['sky_ceiling'].quantile([.01,.05,.25,.5,.75,.95,.99])
+        data = self.convert_unit(quantity.units[unit],data).unstack()
+        data = data.append(data.loc[1].rename(13))
+        data = data.append(data.loc[12].rename(0))
+        data = data.sort_index()
+        ax.plot(data[.5],color=colors[0])
+        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors[1])
+        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors[3])
+        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors[3])
+        
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_ylim(0,quantities.Distance(5e3,'ft')[unit])
+        ax.set_title('Cloud base [%s]'%unit)
+    def plot_monthly_raindays(self,ax,colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'frequency_gust',colors,edgecolor,linewidth,
+            default_alpha=[1]
+        )
+        color = colors[0]
+        
+        preciptypes = ['RA','DZ','SN','IC','PL','GR','GS','UP']
+        intensitytypes = ['+','','-','VC']
+        self.pdf['percipitating'] = False
+        for precip in preciptypes:
+            for intensity in intensitytypes:
+                percipitating = self.pdf.wx.str.contains(re.escape(intensity)+'(?:[A-Z]{2})*?'+re.escape(precip)+'(?:[A-Z]{2})*?')
+                self.pdf['percipitating'] = (self.pdf['percipitating'].values) | (percipitating.fillna(False))
+        data = self.pdf.groupby(self.pdf.time.dt.date).agg({'percipitating':any}).iloc[:,0].reset_index()
+        data['time'] = pd.to_datetime(data.time,dayfirst=True)
+        data['percipitating'] = data.percipitating.astype(int)
+        data = data.groupby([data.time.dt.year,data.time.dt.month]).sum().unstack().mean().unstack().T
+        index,values = data.index.values, data.values[:,0]
+        
+        ax.bar(index, values, color=color,edgecolor=edgecolor,linewidth=linewidth)
+        ax.set_ylabel('Days with precipitation')
+        ax.set_title('Precipitation')
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        
+    def plot_monthly_cycle_cloud_type(self,ax,freq_unit='%',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'frequency_cloud_type',colors,edgecolor,linewidth,
+            default_alpha=[1],dict_keys=metar.Metar._cloud_cover_codes.keys()
+        )
+        freq_quantity = quantities.Fraction
+        freq_unit = freq_quantity.find_unit(freq_unit)
+        
+        data = self.pdf.groupby([self.pdf.time.dt.month,self.pdf.sky_cover])['minutes_valid'].sum().unstack()
+        data = np.divide(data,data.sum(axis=1)[:,None]).reindex(metar.Metar._cloud_cover_codes.keys(),axis=1)
+        clear_index = data[['SKC','NCD','CLR','NSC']].sum().idxmax()
+        data[clear_index] = data[['SKC','NCD','CLR','NSC']].sum(axis=1)
+        data = data[reversed([clear_index,'FEW','SCT','BKN','OVC','VV'])]
+        data = self.convert_unit(freq_quantity.units[freq_unit],data)
+        begin = data.cumsum(axis=1).shift(1,axis=1).fillna(0)
+        colums = data.index.values
+        
+        handles = []
+        for c in data.columns:
+            handles.append(
+                ax.bar(
+                    data.index,
+                    data[c].values,
+                    bottom=begin[c].values,
+                    color=colors[c][0],
+                    edgecolor=edgecolor,
+                    linewidth=linewidth))
+        
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_ylim(0,quantities.Fraction(100,'%')[freq_unit])
+        ax.set_title('Cloud cover [%s]'%freq_unit)
+        
+        ax.legend(handles,data.columns,loc=9,ncol=3,bbox_to_anchor=(.5,-.15),
+                  labelspacing=.15,handlelength=1.5,handletextpad=0.4,fontsize='small',framealpha=0)
+    def plot_monthly_cycle_color(self,ax,freq_unit='%',ylim=None,colors=None,edgecolor=None,linewidth=None):
+        colorcodes = ['BLU+','BLU','WHT','GRN','YLO','YLO1','YLO2','AMB','RED']
+        colors, edgecolor, linewidth = self.theme.cel(
+            'frequency_color',colors,edgecolor,linewidth,
+            default_alpha=[1],dict_keys=colorcodes
+        )
+        freq_quantity = quantities.Fraction
+        freq_unit = freq_quantity.find_unit(freq_unit)
+        
+        data = self.pdf.groupby([self.pdf.time.dt.month,self.pdf.calc_color])['minutes_valid'].sum().unstack()
+        data = np.divide(data,data.sum(axis=1)[:,None])
+        data = data.reindex(colorcodes,axis=1)
+        
+        if data['BLU+'].isnull().all():
+            colorcodes.remove('BLU+')
+        if data['YLO'].isnull().all() and not data[['YLO1','YLO2']].isnull().all().all():
+            colorcodes.remove('YLO')
+        if not data['YLO'].isnull().all() and data[['YLO1','YLO2']].isnull().all().all():
+            colorcodes.remove('YLO1')
+            colorcodes.remove('YLO2')
+        data = data[reversed(colorcodes)].fillna(0)
+        data = self.convert_unit(freq_quantity.units[freq_unit],data)
+        bottom = data.cumsum(axis=1).shift(1,axis=1).fillna(0)
+        colums = data.index.values
+        
+        handles = []
+        for c in data.columns:
+            handles.append(
+                ax.bar(
+                    data.index,
+                    data[c].values,
+                    bottom=bottom[c].values,
+                    color=colors[c][0],
+                    edgecolor=edgecolor,
+                    linewidth=linewidth))
+        
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.filters['month'][0:2]
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        if ylim is None:
+            n = bottom.iloc[:,-1].max()
+            ax.set_ylim(0,np.ceil(n/10**np.floor(np.log10(n)))*(10**np.floor(np.log10(n))))
+        else:
+            ax.set_ylim(*ylim)
+        ax.set_title('NATO Color State [%s]'%freq_unit)
+        
+        ax.legend(handles,data.columns,loc=9,ncol=4,bbox_to_anchor=(.5,-.15),
+                  labelspacing=.15,handlelength=1.5,handletextpad=0.4,fontsize='small',framealpha=0)
+    
+    def plotset_monthly_cycle(self,savefig=None):
+        fig,axs = plt.subplots(nrows=2,ncols=3)
+        self.plot_monthly_cycle_tmin_tmax(axs[0][0])
+        self.plot_monthly_cycle_wcet(axs[0][1])
+        self.plot_monthly_cycle_wbgt_simplified(axs[0][2])
+        self.plot_monthly_cycle_relh(axs[1][0])
+        self.plot_monthly_cycle_vism(axs[1][1])
+        self.plot_monthly_cycle_ceiling(axs[1][2])
+        plt.tight_layout()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
+    def plotset_monthly_stacks(self,savefig=None):
+        fig,axs = plt.subplots(nrows=1,ncols=2,figsize=(6.3,2.1))
+        self.plot_monthly_cycle_cloud_type(axs[0])
+        self.plot_monthly_cycle_color(axs[1])
+        plt.tight_layout()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
+    def plotset_raindays(self,savefig=None):
+        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(6.3/3,2.1))
+        self.plot_monthly_raindays(ax)
+        plt.tight_layout()
+        if savefig is not None:
+             plt.savefig(savefig)
+             plt.close()
+    def generate_yearly_plots(self,savefig=True):
+        if savefig:
+            dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
+            if not os.path.exists(dirname_figs):
+                pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
+        self.plotset_monthly_cycle(savefig='Y1.png' if savefig else None)
+        self.plotset_wind(savefig='Y2.png' if savefig else None)
+        self.plotset_raindays(savefig='Y3.png' if savefig else None)
+        self.plotset_monthly_stacks(savefig='Y4.png' if savefig else None)
+    
     def plotset_daily_cycle_legend(self,savefig=None):
         with mpl.rc_context(rc={'font.size':15*1.5}):
             fig,ax = plt.subplots(1,1,figsize=(6*3,1))
