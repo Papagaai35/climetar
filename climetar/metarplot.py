@@ -16,95 +16,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from . import metar, quantities
-
-class MetarTheme(object):
-    def __init__(self,json_or_file=None):
-        self.theme = {}
-        if json_or_file is not None:
-            theme = None
-            try:
-                theme = json.loads(json_or_file)
-            except:
-                try:
-                    if os.path.exists(json_or_file) and os.path.isfile(json_or_file):
-                        with open(json_or_file,'r') as fh:
-                            theme = json.load(fh)
-                except:
-                    pass
-            if theme is not None:
-                self.theme = theme
-            else:
-                raise ValueError('Invalid theme passed:\n%s'%json_or_file)
-    @classmethod
-    def to_color(cls,color,default_alpha=None,dict_keys=None,deep_dict_keys=None,default_color='k'):
-        if default_alpha is None:
-            default_alpha = [1]
-        if hasattr(dict_keys,'__iter__') and not isinstance(dict_keys,list):
-            dict_keys = list(dict_keys)
-        
-        if isinstance(color,dict):
-            if dict_keys is None:
-                raise ValueError('Error 1: A list of colors is expected')
-            keys = sorted(list(set(list(color.keys())+dict_keys)))
-            colordict = {}
-            for k in keys:
-                ddk = None
-                if isinstance(deep_dict_keys,dict) and k in deep_dict_keys:
-                    ddk = deep_dict_keys[k]
-                if k in color:
-                    colordict[k] = cls.to_color(color[k],default_alpha,dict_keys=ddk)
-                elif 'default' in color:
-                    colordict[k] = cls.to_color(color['default'],default_alpha,dict_keys=ddk)
-                else:
-                    colordict[k] = cls.to_color(default_color,default_alpha,dict_keys=ddk)
-            return colordict
-        elif isinstance(color,list) and dict_keys is None:
-            if len(color)>=len(default_alpha):
-                colorlist = []
-                for i, c in enumerate(color):
-                    colorlist.append(mpl.colors.to_rgba(c,default_alpha[i]))
-                return colorlist
-            else:
-                raise ValueError('Error 2: At least %d colors are necessary for this plot. %d given'%(len(default_alpha),len(color)))     
-        elif isinstance(color,list):
-            if len(color)>=len(dict_keys):
-                colordict = {}
-                for i,k in enumerate(dict_keys):
-                    colordict[k] = [color[i]]
-                for j in range(i,len(color)):
-                    colordict[f'other_{j:d}'] = [color[j]]
-                return cls.to_color(colordict,default_alpha,dict_keys)
-            else:
-                raise ValueError('Error 2: At least %d colors are necessary for this plot. %d given'%(len(dict_keys),len(color)))     
-        elif isinstance(color,(str,tuple)) and dict_keys is None:
-            colorlist = []
-            for da in default_alpha:
-                colorlist.append(mpl.colors.to_rgba(color,da))
-            return colorlist
-        elif isinstance(color,(str,tuple)):
-            colordict = {}
-            for k in dict_keys:
-                colordict[k] = cls.to_color(color,default_alpha)
-            return colordict
-        else:
-            raise ValueError('Error 4: Strange inputs:\n'+'\n'.join([n+': '+repr(e) for n,e in {'color':color,'default_alpha':default_alpha,'dict_keys':dict_keys,'default_color':default_color}.items()]))
-    def cel(self,fnname,colors=None,edgecolor=None,linewidth=None,**kwargs):
-        if fnname in self.theme:
-            c,e,l = (
-                colors if colors is not None else self.theme[fnname].get('colors','k'),
-                edgecolor if edgecolor is not None else self.theme[fnname].get('edgecolor','none'),
-                linewidth if linewidth is not None else self.theme[fnname].get('linewidth',.5),
-            )
-        else:
-            c,e,l = (
-                colors if colors is not None else 'k',
-                edgecolor if edgecolor is not None else 'none',
-                linewidth if linewidth is not None else .5,
-            )
-        c = self.to_color(c,**kwargs)
-        e = self.to_color(e)[0] if e not in ['none',None] else 'none'
-        l = 0 if e=='none' else l
-        return c,e,l
+from .svgpath2mpl import parse_path
+from .metartheme import MetarTheme
     
 class MetarPlotter(object):    
     def __init__(self,**settings):
@@ -121,6 +34,7 @@ class MetarPlotter(object):
             'tex_month': settings.get('tex_month','./resources/T1.month.tex'),
             'fonts': settings.get('fonts','./resources/fonts/'),
             'logo': settings.get('logo','./resources/JMG.png'),
+            'natural_earth': settings.get('natural_earth','./resources/'),
         }
         #self.locale = settings.get('lang','en_GB.utf8')
         self.locales = {}
@@ -243,6 +157,47 @@ class MetarPlotter(object):
             raise ValueError('The axis must be polar for a wind_compass_* plot, not %s.'%ax.name)
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
+    @classmethod
+    def prepare_maps(cls):
+        global cartopy, xr, rasterio
+        import cartopy
+        import xarray as xr
+        import rasterio
+        
+    def load_map_raster(self,name):
+        tif_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['tif','tiff'])
+        da = xr.open_rasterio(tif_path)
+        da = da.transpose('y','x','band')
+        return da
+    
+    def load_map_shape(self,name):
+        shp_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['shp'])
+        return cartopy.io.shapereader.Reader(shp_path)
+    
+    def map_stock_img(self,ax,zoom=.99,transform=None):
+            trans = transform if transform is not None else cartopy.crs.PlateCarree()
+            img_extent = np.array(ax.get_extent(crs=trans))+[-1/zoom,1/zoom,-1/zoom,1/zoom]
+            hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'NE1_HR_LC_SR_W_DR',['tif','tiff','zip']))
+            if zoom < 1 or not hires_available:
+                imgda = self.load_map_raster('NE1_LR_LC_SR_W_DR')
+                step = int(np.clip(np.ceil(.5/zoom),1,None))
+                img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,step)
+            else:
+                imgda = self.load_map_raster('NE1_HR_LC_SR_W_DR')
+                img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,1 if zoom>=1.33 else 2)
+            ax.imshow(img_da.values,
+                origin='upper',
+                transform=trans,
+                extent=img_extent,
+                zorder=-2)
+            hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
+            if zoom < 1 or not hires_available:
+                shp = self.load_map_shape('ne_50m_admin_0_countries')
+            else:
+                shp = self.load_map_shape('ne_10m_admin_0_countries')
+            sf = cartopy.feature.ShapelyFeature(shp.geometries(),trans,
+                facecolor='none',edgecolor='#666666',linewidth=.75,zorder=-1)
+            ax.add_feature(sf,zorder=-1)
         
     def categorize_wind_dirs(self):
         catborders = [0,11.25,33.75,56.25,78.75,101.25,123.75,146.25,168.75,
@@ -255,101 +210,6 @@ class MetarPlotter(object):
         self.pdf['wind_dir_compass'] = np.take(catnames,self.pdf.wind_dir_catindex)
         self.pdf['wind_dir_catdeg'] = np.take(catcenters,self.pdf.wind_dir_catindex)
         self.pdf['wind_dir_catrad'] = np.deg2rad(self.pdf.wind_dir_catdeg)
-    
-    def _plot_daily_cycle_hoursteps(
-            self,ax,variable,unit,quantity,title='',ylim=None,
-            colors=None,edgecolor=None,linewidth=None):
-        
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_hoursteps',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        unit = quantity.find_unit(unit)
-        
-        gbo = self.pdf.dropna(subset=[variable]).groupby(self.pdf.time.dt.hour)
-        data = gbo[variable].quantile([.01,.05,.25,.5,.75,.95,.99])
-        data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.iloc[0].rename(24))
-        ax.plot(data[.5],color=colors[0])
-        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors[1])
-        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors[2])
-        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors[2])
-        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors[3])
-        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors[3])
-        ax.set_xticks([0,6,12,18,24]);
-        ax.set_xticks([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],minor=True);
-        begin, end = self.filters['hour'][0:2]
-        begin = 0 if begin is None else begin
-        end = 24 if end is None else end
-        ax.set_xlim(begin,end)
-        if ylim is not None:
-            ax.set_ylim(*ylim)
-        ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%dh"))
-        ax.set_title(title)
-    def plot_daily_cycle_temp(self,ax,unit='°C',colors=None,edgecolor=None,linewidth=None):
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_temp',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        self._plot_daily_cycle_hoursteps(ax,'temp',title='Temperature [%s]'%unit,
-            unit=unit,quantity=quantities.Temperature,
-            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
-    def plot_daily_cycle_dwpc(self,ax,unit='°C',colors=None,edgecolor=None,linewidth=None):
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_dwpc',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        self._plot_daily_cycle_hoursteps(ax,'dwpt',title='Dew Point [%s]'%unit,
-            unit=unit,quantity=quantities.Temperature,
-            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
-    def plot_daily_cycle_relh(self,ax,unit='%',colors=None,edgecolor=None,linewidth=None):
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_relh',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        quantity = quantities.Fraction
-        unit = quantity.find_unit(unit)
-        self._plot_daily_cycle_hoursteps(ax,'relh',title='Relative Humidity [%s]'%unit,
-            ylim=(0,quantities.Fraction(1,'frac')[unit]),
-            unit=unit,quantity=quantity,colors=colors,edgecolor=edgecolor,linewidth=linewidth)
-    def plot_daily_cycle_wspd(self,ax,unit='kt',colors=None,edgecolor=None,linewidth=None):
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_wspd',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        self._plot_daily_cycle_hoursteps(ax,'wind_spd',title='Wind speed [%s]'%unit,
-            ylim=(0,None),unit=unit,quantity=quantities.Speed,
-            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
-    def plot_daily_cycle_vism(self,ax,unit='km',colors=None,edgecolor=None,linewidth=None):
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_vism',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        quantity = quantities.Distance
-        unit = quantity.find_unit(unit)
-        self._plot_daily_cycle_hoursteps(ax,'vis',title='Visibility [%s]'%unit,
-            ylim=(0,quantities.Distance(10,'km')[unit]),unit=unit,quantity=quantity,
-            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
-    def plot_daily_cycle_ceiling(self,ax,unit='ft',colors=None,edgecolor=None,linewidth=None):
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_ceiling',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        quantity = quantities.Height
-        unit = quantity.find_unit(unit)
-        self._plot_daily_cycle_hoursteps(ax,'sky_ceiling',title='Cloud base [%s]'%unit,
-            ylim=(0,quantities.Distance(5e3,'ft')[unit]),unit=unit,quantity=quantity,
-            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
-    def plot_daily_cycle_pres(self,ax,unit='hPa',colors=None,edgecolor=None,linewidth=None):
-        colors, edgecolor, linewidth = self.theme.cel(
-            'daily_cycle_pres',colors,edgecolor,linewidth,
-            default_alpha=[1,.6,.38,.15]
-        )
-        quantity = quantities.Pressure
-        unit = quantity.find_unit(unit)
-        self._plot_daily_cycle_hoursteps(ax,'spPa',title='Surface Pressure [%s]'%unit,
-            ylim=(quantities.Distance(950,'hPa')[unit],quantities.Distance(1050,'hPa')[unit]),unit=unit,quantity=quantity,
-            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
     
     def plot_wind_compass_dir_freq(self,ax,unit='%',cat=True,colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
@@ -419,7 +279,111 @@ class MetarPlotter(object):
         ax.set_yticks(np.arange(0,maxval+addval,addval),minor=True)
         self.realign_polar_xticks(ax)
         ax.set_title('Wind Speed [%s]'%unit,pad=12.5)
-            
+    def plotset_wind(self,savefig=None):
+        with plt.rc_context({'xtick.major.pad':-1}):
+            fig,axs = plt.subplots(nrows=1,ncols=2,figsize=(6.3/3*2,2.1),subplot_kw={'polar':True})
+            self.plot_wind_compass_dir_freq(axs[0])
+            self.plot_wind_compass_spd(axs[1])
+            plt.tight_layout()
+            if savefig is not None:
+                plt.savefig(savefig)
+                plt.close()
+    
+    # Averages per month (average daily cycles e.d)
+    def _plot_dh_cycle_hoursteps(
+            self,ax,variable,unit,quantity,title='',ylim=None,
+            colors=None,edgecolor=None,linewidth=None):
+        
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_hoursteps',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        unit = quantity.find_unit(unit)
+        
+        gbo = self.pdf.dropna(subset=[variable]).groupby(self.pdf.time.dt.hour)
+        data = gbo[variable].quantile([.01,.05,.25,.5,.75,.95,.99])
+        data = self.convert_unit(quantity.units[unit],data).unstack()
+        data = data.append(data.iloc[0].rename(24))
+        ax.plot(data[.5],color=colors[0])
+        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,color=colors[1])
+        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,color=colors[2])
+        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,color=colors[3])
+        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,color=colors[3])
+        ax.set_xticks([0,6,12,18,24]);
+        ax.set_xticks([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],minor=True);
+        begin, end = self.filters['hour'][0:2]
+        begin = 0 if begin is None else begin
+        end = 24 if end is None else end
+        ax.set_xlim(begin,end)
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+        ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%dh"))
+        ax.set_title(title)
+    def plot_dh_cycle_temp(self,ax,unit='°C',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_temp',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        self._plot_dh_cycle_hoursteps(ax,'temp',title='Temperature [%s]'%unit,
+            unit=unit,quantity=quantities.Temperature,
+            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
+    def plot_dh_cycle_dwpc(self,ax,unit='°C',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_dwpc',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        self._plot_dh_cycle_hoursteps(ax,'dwpt',title='Dew Point [%s]'%unit,
+            unit=unit,quantity=quantities.Temperature,
+            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
+    def plot_dh_cycle_relh(self,ax,unit='%',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_relh',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        quantity = quantities.Fraction
+        unit = quantity.find_unit(unit)
+        self._plot_dh_cycle_hoursteps(ax,'relh',title='Relative Humidity [%s]'%unit,
+            ylim=(0,quantities.Fraction(1,'frac')[unit]),
+            unit=unit,quantity=quantity,colors=colors,edgecolor=edgecolor,linewidth=linewidth)
+    def plot_dh_cycle_wspd(self,ax,unit='kt',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_wspd',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        self._plot_dh_cycle_hoursteps(ax,'wind_spd',title='Wind speed [%s]'%unit,
+            ylim=(0,None),unit=unit,quantity=quantities.Speed,
+            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
+    def plot_dh_cycle_vism(self,ax,unit='km',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_vism',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        quantity = quantities.Distance
+        unit = quantity.find_unit(unit)
+        self._plot_dh_cycle_hoursteps(ax,'vis',title='Visibility [%s]'%unit,
+            ylim=(0,quantities.Distance(10,'km')[unit]),unit=unit,quantity=quantity,
+            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
+    def plot_dh_cycle_ceiling(self,ax,unit='ft',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_ceiling',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        quantity = quantities.Height
+        unit = quantity.find_unit(unit)
+        self._plot_dh_cycle_hoursteps(ax,'sky_ceiling',title='Cloud base [%s]'%unit,
+            ylim=(0,quantities.Distance(5e3,'ft')[unit]),unit=unit,quantity=quantity,
+            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
+    def plot_dh_cycle_pres(self,ax,unit='hPa',colors=None,edgecolor=None,linewidth=None):
+        colors, edgecolor, linewidth = self.theme.cel(
+            'daily_cycle_pres',colors,edgecolor,linewidth,
+            default_alpha=[1,.6,.38,.15]
+        )
+        quantity = quantities.Pressure
+        unit = quantity.find_unit(unit)
+        self._plot_dh_cycle_hoursteps(ax,'spPa',title='Surface Pressure [%s]'%unit,
+            ylim=(quantities.Distance(950,'hPa')[unit],quantities.Distance(1050,'hPa')[unit]),unit=unit,quantity=quantity,
+            colors=colors,edgecolor=edgecolor,linewidth=linewidth)
     def plot_frequency_gust(self,ax,unit='kt',freq_unit='%',colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'frequency_gust',colors,edgecolor,linewidth,
@@ -599,7 +563,77 @@ class MetarPlotter(object):
         ax.set_title('Significant Weather');
         ax.set_ylabel('Frequency [%s]'%freq_unit)
     
-    def plot_monthly_cycle_tmin_tmax(self,ax,unit='°C',colors=None,edgecolor=None,linewidth=None):
+    def plotset_daily_cycle_legend(self,savefig=None):
+        with mpl.rc_context(rc={'font.size':15*1.5}):
+            fig,ax = plt.subplots(1,1,figsize=(6*3,1))
+            colors, edgecolor, linewidth = self.theme.cel(
+                'daily_cycle_hoursteps',default_alpha=[1,.6,.38,.15]
+            )
+            labels = ['%02d%% Confidence interval'%i for i in [50,90,99]]
+            handles = [mpl.patches.Patch(color=colors[x+1],label=labels[x]) for x in range(len(labels))]
+            handles = [mpl.lines.Line2D([],[],linestyle='-',color=colors[0],linewidth=2.5,label='Median')] + handles
+            plt.legend(handles=handles,loc=8,ncol=len(handles),framealpha=1,frameon=False)
+            plt.gca().set_axis_off()
+            plt.tight_layout()
+            if savefig is not None:
+                plt.savefig(savefig)
+                plt.close()
+    def plotset_daily(self,savefig=None):
+        fig,axs = plt.subplots(nrows=2,ncols=3)
+        self.plot_dh_cycle_temp(axs[0][0])
+        self.plot_dh_cycle_dwpc(axs[0][1])
+        self.plot_dh_cycle_relh(axs[0][2])
+        self.plot_dh_cycle_wspd(axs[1][0])
+        self.plot_dh_cycle_vism(axs[1][1])
+        self.plot_dh_cycle_ceiling(axs[1][2])
+        plt.tight_layout()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
+    def plotset_gust(self,savefig=None):
+        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(6.3/3,2.1))
+        self.plot_frequency_gust(ax)
+        plt.tight_layout()
+        if savefig is not None:
+             plt.savefig(savefig)
+             plt.close()
+    def plotset_wx(self,savefig=None):
+        fig,axs = plt.subplots(nrows=2,ncols=2)
+        self.plot_frequency_cloud_type(axs[0][0])
+        self.plot_frequency_color(axs[0][1])
+        self.plot_frequency_percipitation(axs[1][0])
+        self.plot_frequency_sigwx(axs[1][1])
+        plt.tight_layout()
+        if savefig is not None:
+             plt.savefig(savefig)
+             plt.close()
+    def generate_monthly_plots(self):
+        basefilters = copy.copy(self.filters)
+        
+        for month in self.frange(basefilters['month'],1,12):
+            print(self.locales['monthabbr'][month],end=' ',flush=True)
+            self.reset_filters()
+            self.redo_filters(basefilters)
+            self.filter_month(eq=month)
+            
+            dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
+            if not os.path.exists(dirname_figs):
+                pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
+            self.plotset_daily(os.path.join(dirname_figs,f'A{month:02d}.png'))
+            self.plotset_wind(os.path.join(dirname_figs,f'B{month:02d}.png'))
+            self.plotset_gust(os.path.join(dirname_figs,f'C{month:02d}.png'))
+            self.plotset_wx(os.path.join(dirname_figs,f'D{month:02d}.png'))
+            
+            self.years[month] = self.pdf.time.dt.year.min(), self.pdf.time.dt.year.max()
+            
+        self.plotset_daily_cycle_legend(os.path.join(dirname_figs,f'LEGEND.png'))
+        self.plotset_logo(os.path.join(dirname_figs,f'LOGO.png'))
+        
+        self.reset_filters()
+        self.redo_filters(basefilters)
+    
+    # Averages per year (yearly cycles) Plots
+    def plot_ym_cycle_tmin_tmax(self,ax,unit='°C',colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'monthly_cycle_tmin_tmax',colors,edgecolor,linewidth,
             default_alpha=[1,.6,.38,.15],dict_keys=['tmin','tmax'],
@@ -629,7 +663,7 @@ class MetarPlotter(object):
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
         ax.set_title('Temperature (min/max) [%s]'%(unit))
-    def plot_monthly_cycle_wcet(self,ax,unit='°C',ylim=None,colors=None,edgecolor=None,linewidth=None):
+    def plot_ym_cycle_wcet(self,ax,unit='°C',ylim=None,colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'monthly_cycle_wcet',colors,edgecolor,linewidth,
             default_alpha=[1,.6,.38,.15],dict_keys=['data','limits'],deep_dict_keys={'limits':[]},
@@ -643,6 +677,7 @@ class MetarPlotter(object):
                 break
             f2 = list(filter(lambda x: x>f1,limits.keys()))[0]
             ax.fill_between(x=[-1,14],y1=f1,y2=f2,zorder=-5,alpha=.6,color=colors['limits'][s][0][:3])
+            ax.axhline(f2,zorder=-4,alpha=.8,color=colors['limits'][s][0][:3],linewidth=linewidth*.5)
         
         t2m = self.convert_unit(quantity.units['°C'],self.pdf.temp)
         wind = (self.convert_unit(quantityWind.units['km/h'],self.pdf.wind_spd))**0.16
@@ -674,8 +709,8 @@ class MetarPlotter(object):
             ax.set_ylim(np.floor(data[.01].min()/5)*5,
                         np.ceil(data[.99].max()/5)*5)
         ax.set_xlim(begin-.5,end+.5)
-        ax.set_title('Wind Chill Equivalent Temperature [%s]'%unit)
-    def plot_monthly_cycle_wbgt_simplified(self,ax,unit='°C',ylim=None,colors=None,edgecolor=None,linewidth=None):
+        ax.set_title('Wind Chill [%s]'%unit)
+    def plot_ym_cycle_wbgt_simplified(self,ax,unit='°C',ylim=None,colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'monthly_cycle_wbgt',colors,edgecolor,linewidth,
             default_alpha=[1,.6,.38,.15],dict_keys=['data','limits'],deep_dict_keys={'limits':[]},
@@ -688,6 +723,7 @@ class MetarPlotter(object):
                 break
             f2 = list(filter(lambda x: x>f1,limits.keys()))[0]
             ax.fill_between(x=[-1,14],y1=f1,y2=f2,zorder=-5,alpha=.38,color=colors['limits'][s][0][:3])
+            ax.axhline(f2,zorder=-4,alpha=.1,color=colors['limits'][s][0][:3],linewidth=linewidth*.5)
         
         t2m = self.convert_unit(quantity.units['°C'],self.pdf.temp)
         d2m = self.convert_unit(quantity.units['°C'],self.pdf.dwpt)
@@ -722,8 +758,8 @@ class MetarPlotter(object):
             ax.set_ylim(np.floor(data[.01].min()/5)*5,
                         np.ceil(data[.99].max()/5)*5)
         ax.set_xlim(begin-.5,end+.5)
-        ax.set_title('Wet Bulb Globe Temperature [%s]'%unit)
-    def plot_monthly_cycle_relh(self,ax,unit='%',colors=None,edgecolor=None,linewidth=None):
+        ax.set_title('WBGT [%s]'%unit)
+    def plot_ym_cycle_relh(self,ax,unit='%',colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'monthly_cycle_relh',colors,edgecolor,linewidth,
             default_alpha=[1,.6,.38,.15]
@@ -754,7 +790,7 @@ class MetarPlotter(object):
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,100)
         ax.set_title('Relative Humidity [%s]'%unit)
-    def plot_monthly_cycle_vism(self,ax,unit='km',colors=None,edgecolor=None,linewidth=None):
+    def plot_ym_cycle_vism(self,ax,unit='km',colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'monthly_cycle_vism',colors,edgecolor,linewidth,
             default_alpha=[1,.6,.38,.15]
@@ -785,7 +821,7 @@ class MetarPlotter(object):
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,quantities.Distance(10,'km')[unit])
         ax.set_title('Visibility [%s]'%unit)
-    def plot_monthly_cycle_ceiling(self,ax,unit='ft',colors=None,edgecolor=None,linewidth=None):
+    def plot_ym_cycle_ceiling(self,ax,unit='ft',colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'monthly_cycle_ceiling',colors,edgecolor,linewidth,
             default_alpha=[1,.6,.38,.15]
@@ -816,7 +852,7 @@ class MetarPlotter(object):
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,quantities.Distance(5e3,'ft')[unit])
         ax.set_title('Cloud base [%s]'%unit)
-    def plot_monthly_raindays(self,ax,colors=None,edgecolor=None,linewidth=None):
+    def plot_ym_raindays(self,ax,colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'frequency_gust',colors,edgecolor,linewidth,
             default_alpha=[1]
@@ -847,8 +883,8 @@ class MetarPlotter(object):
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
-        
-    def plot_monthly_cycle_cloud_type(self,ax,freq_unit='%',colors=None,edgecolor=None,linewidth=None):
+        ax.set_ylim(0,31)
+    def plot_ym_cycle_cloud_type(self,ax,freq_unit='%',colors=None,edgecolor=None,linewidth=None):
         colors, edgecolor, linewidth = self.theme.cel(
             'frequency_cloud_type',colors,edgecolor,linewidth,
             default_alpha=[1],dict_keys=metar.Metar._cloud_cover_codes.keys()
@@ -889,7 +925,7 @@ class MetarPlotter(object):
         
         ax.legend(handles,data.columns,loc=9,ncol=3,bbox_to_anchor=(.5,-.15),
                   labelspacing=.15,handlelength=1.5,handletextpad=0.4,fontsize='small',framealpha=0)
-    def plot_monthly_cycle_color(self,ax,freq_unit='%',ylim=None,colors=None,edgecolor=None,linewidth=None):
+    def plot_ym_cycle_color(self,ax,freq_unit='%',ylim=None,colors=None,edgecolor=None,linewidth=None):
         colorcodes = ['BLU+','BLU','WHT','GRN','YLO','YLO1','YLO2','AMB','RED']
         colors, edgecolor, linewidth = self.theme.cel(
             'frequency_color',colors,edgecolor,linewidth,
@@ -945,27 +981,27 @@ class MetarPlotter(object):
     
     def plotset_monthly_cycle(self,savefig=None):
         fig,axs = plt.subplots(nrows=2,ncols=3)
-        self.plot_monthly_cycle_tmin_tmax(axs[0][0])
-        self.plot_monthly_cycle_wcet(axs[0][1])
-        self.plot_monthly_cycle_wbgt_simplified(axs[0][2])
-        self.plot_monthly_cycle_relh(axs[1][0])
-        self.plot_monthly_cycle_vism(axs[1][1])
-        self.plot_monthly_cycle_ceiling(axs[1][2])
+        self.plot_ym_cycle_tmin_tmax(axs[0][0])
+        self.plot_ym_cycle_wcet(axs[0][1])
+        self.plot_ym_cycle_wbgt_simplified(axs[0][2])
+        self.plot_ym_cycle_relh(axs[1][0])
+        self.plot_ym_cycle_vism(axs[1][1])
+        self.plot_ym_cycle_ceiling(axs[1][2])
         plt.tight_layout()
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
     def plotset_monthly_stacks(self,savefig=None):
         fig,axs = plt.subplots(nrows=1,ncols=2,figsize=(6.3,2.1))
-        self.plot_monthly_cycle_cloud_type(axs[0])
-        self.plot_monthly_cycle_color(axs[1])
+        self.plot_ym_cycle_cloud_type(axs[0])
+        self.plot_ym_cycle_color(axs[1])
         plt.tight_layout()
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
     def plotset_raindays(self,savefig=None):
         fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(6.3/3,2.1))
-        self.plot_monthly_raindays(ax)
+        self.plot_ym_raindays(ax)
         plt.tight_layout()
         if savefig is not None:
              plt.savefig(savefig)
@@ -975,91 +1011,84 @@ class MetarPlotter(object):
             dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
             if not os.path.exists(dirname_figs):
                 pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
-        self.plotset_monthly_cycle(savefig='Y1.png' if savefig else None)
-        self.plotset_wind(savefig='Y2.png' if savefig else None)
-        self.plotset_raindays(savefig='Y3.png' if savefig else None)
-        self.plotset_monthly_stacks(savefig='Y4.png' if savefig else None)
+        self.plotset_map(savefig=os.path.join(dirname_figs,'Y0.png') if savefig else None)
+        self.plotset_monthly_cycle(savefig=os.path.join(dirname_figs,'Y1.png') if savefig else None)
+        self.plotset_wind(savefig=os.path.join(dirname_figs,'Y2.png') if savefig else None)
+        self.plotset_raindays(savefig=os.path.join(dirname_figs,'Y3.png') if savefig else None)
+        self.plotset_monthly_stacks(savefig=os.path.join(dirname_figs,'Y4.png') if savefig else None)
     
-    def plotset_daily_cycle_legend(self,savefig=None):
-        with mpl.rc_context(rc={'font.size':15*1.5}):
-            fig,ax = plt.subplots(1,1,figsize=(6*3,1))
-            colors, edgecolor, linewidth = self.theme.cel(
-                'daily_cycle_hoursteps',default_alpha=[1,.6,.38,.15]
-            )
-            labels = ['%02d%% Confidence interval'%i for i in [50,90,99]]
-            handles = [mpl.patches.Patch(color=colors[x+1],label=labels[x]) for x in range(len(labels))]
-            handles = [mpl.lines.Line2D([],[],linestyle='-',color=colors[0],linewidth=2.5,label='Median')] + handles
-            plt.legend(handles=handles,loc=8,ncol=len(handles),framealpha=1,frameon=False)
-            plt.gca().set_axis_off()
-            plt.tight_layout()
-            if savefig is not None:
-                plt.savefig(savefig)
-                plt.close()
-    def plotset_daily(self,savefig=None):
-        fig,axs = plt.subplots(nrows=2,ncols=3)
-        self.plot_daily_cycle_temp(axs[0][0])
-        self.plot_daily_cycle_dwpc(axs[0][1])
-        self.plot_daily_cycle_relh(axs[0][2])
-        self.plot_daily_cycle_wspd(axs[1][0])
-        self.plot_daily_cycle_vism(axs[1][1])
-        self.plot_daily_cycle_ceiling(axs[1][2])
+    # Non-meteo plots
+    def plotset_logo(self,savefig=None):
+        if savefig is not None:
+            shutil.copyfile(self.filepaths['logo'],savefig)
+    def plotset_map(self,stations=None,zoom=1,clat=None,clon=None,figsize=None,savefig=None):
+        self.prepare_maps()
+        if stations is None:
+            stations = []
+        if self.station not in stations and self.station is not None:
+            stations = [self.station] + stations
+        if clat is None or clon is None:
+            station_data = self.station_repo['stations'][stations[0]]
+            clat,clon = station_data['latitude'], station_data['longitude']
+        extent = [clat-(15/zoom),clat+(15/zoom),clon-(10/zoom),clon+(10/zoom)]
+        proj = cartopy.crs.NearsidePerspective(
+            central_longitude=clat,
+            central_latitude=clon,
+            satellite_height=35785831
+        )
+        trans = cartopy.crs.PlateCarree()
+
+        fig,ax = plt.subplots(1,1,figsize=figsize,subplot_kw={'projection':proj})
+
+        for s in stations:
+            station_data = self.station_repo['stations'][s]
+            lat,lon = station_data['latitude'], station_data['longitude']
+            if extent[0] <= lat <= extent[1] and extent[2] <= lon <= extent[3]:
+                plane_str = """m 37.398882,331.5553 195.564518,-53.33707 81.92539,81.92539 c 18.40599,18.40599 58.40702,30.50459 72.90271,27.64788 2.85671,-14.49569 -9.24189,-54.49672 -27.64788,-72.90271 L 278.21823,232.9634 331.5553,37.39888 305.29335,11.13693 216.40296,171.14812 133.86945,88.61462 142.35474,29.21765 113.13708,0 73.058272,73.05827 0,113.13708 l 29.217652,29.21766 59.39697,-8.48529 82.533498,82.53351 -160.011188,88.89039 26.26195,26.26195"""
+                plane_path = parse_path(plane_str)
+                plane_path.vertices -= plane_path.vertices.mean(axis=0)
+                ax.scatter(lat,lon,transform=trans,
+                           s=36*2,marker=plane_path,c='k',zorder=2)
+                ax.annotate(station_data['icao'],xy=(lat,lon),xytext=(lat+(.4/zoom),lon+(.3/zoom)),
+                            xycoords=trans._as_mpl_transform(ax),zorder=2)
+            else:
+                latr, lonr, clatr, clonr = np.deg2rad(np.array([lat,lon,clat,clon]))
+                x = np.cos(latr)*np.sin(clonr-lonr)
+                y = np.cos(clatr)*np.sin(latr)-np.sin(clatr)*np.cos(latr)*np.cos(clonr-lonr)
+                heading = np.arctan2(y,x)-.5*np.pi
+                heading_deg = np.rad2deg(heading)%360
+                if 45<=heading_deg<=135:
+                    x = .5+(.5/np.tan(heading))
+                    y = 1
+                elif 135<=heading_deg<=225:
+                    x = 0
+                    y = .5-(.5*np.tan(heading))
+                elif 225<=heading_deg<=315:
+                    x = .5-(.5/np.tan(heading))
+                    y = 0
+                else:
+                    x = 1
+                    y = .5+(.5*np.tan(heading))
+                x,y = np.clip(x,.02,.98),np.clip(y,.02,.98)
+                ax.scatter(x,y,transform=ax.transAxes,
+                           s=36*2,c='k',
+                           marker=(3,0,(heading_deg-90)%360),zorder=2)
+                ax.annotate(station_data['icao'],
+                            xy=(x,y),
+                            xytext=(x+(.01 if x<.5 else -.01),
+                                    y+(.01 if y<.5 else -.01)),
+                            xycoords=ax.transAxes,
+                            va=('top' if y>.5 else 'bottom'),
+                            ha=('right' if x>.5 else 'left'),
+                            zorder=2
+                           )
+        ax.set_extent(extent,crs=trans)
+        self.map_stock_img(ax,zoom)
         plt.tight_layout()
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
-    def plotset_wind(self,savefig=None):
-        with plt.rc_context({'xtick.major.pad':-1}):
-            fig,axs = plt.subplots(nrows=1,ncols=2,figsize=(6.3/3*2,2.1),subplot_kw={'polar':True})
-            self.plot_wind_compass_dir_freq(axs[0])
-            self.plot_wind_compass_spd(axs[1])
-            plt.tight_layout()
-            if savefig is not None:
-                plt.savefig(savefig)
-                plt.close()
-    def plotset_gust(self,savefig=None):
-        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(6.3/3,2.1))
-        self.plot_frequency_gust(ax)
-        plt.tight_layout()
-        if savefig is not None:
-             plt.savefig(savefig)
-             plt.close()
-    def plotset_wx(self,savefig=None):
-        fig,axs = plt.subplots(nrows=2,ncols=2)
-        self.plot_frequency_cloud_type(axs[0][0])
-        self.plot_frequency_color(axs[0][1])
-        self.plot_frequency_percipitation(axs[1][0])
-        self.plot_frequency_sigwx(axs[1][1])
-        plt.tight_layout()
-        if savefig is not None:
-             plt.savefig(savefig)
-             plt.close()
-    def plotset_logo(self,savefig=None):
-        if savefig is not None:
-            shutil.copyfile(self.filepaths['logo'],savefig)
-    def generate_monthly_plots(self):
-        basefilters = copy.copy(self.filters)
-        
-        for month in self.frange(basefilters['month'],1,12):
-            print(self.locales['monthabbr'][month],end=' ',flush=True)
-            self.reset_filters()
-            self.redo_filters(basefilters)
-            self.filter_month(eq=month)
-            
-            dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
-            if not os.path.exists(dirname_figs):
-                pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
-            self.plotset_daily(os.path.join(dirname_figs,f'A{month:02d}.png'))
-            self.plotset_wind(os.path.join(dirname_figs,f'B{month:02d}.png'))
-            self.plotset_gust(os.path.join(dirname_figs,f'C{month:02d}.png'))
-            self.plotset_wx(os.path.join(dirname_figs,f'D{month:02d}.png'))
-            
-            self.years[month] = self.pdf.time.dt.year.min(), self.pdf.time.dt.year.max()
-            
-        self.plotset_daily_cycle_legend(os.path.join(dirname_figs,f'LEGEND.png'))
-        self.plotset_logo(os.path.join(dirname_figs,f'LOGO.png'))
-        
-        self.reset_filters()
-        self.redo_filters(basefilters)
+    
     def generate_monthly_tex(self):
         with open(self.filepaths['tex_head'],'r') as fhh:
             latexhead = fhh.read()
@@ -1112,4 +1141,71 @@ class MetarPlotter(object):
             
         print('PDF can be found at "%s"'%os.path.join(self.filepaths['output'],self.station,self.station_data['icao'].upper()+"_monthly.pdf"))
         
-    
+class MapPlotHelper(object):
+    @classmethod
+    def search_files(cls,basepath,name,exts):
+        potential_locations = [
+            os.path.join(basepath,'{name}.{ext}'),
+            os.path.join(basepath,'natural_earth','{name}.{ext}'),
+            os.path.join(basepath,'{name}','{name}.{ext}'),
+            os.path.join(basepath,'natural_earth','{name}','{name}.{ext}'),
+        ]
+        if isinstance(exts,list):
+            for ext in exts:
+                for potential_location in potential_locations:
+                    pl = potential_location.format(name=name,ext=ext)
+                    if os.path.exists(pl) and os.path.isfile(pl):
+                        return pl
+        else:
+            ext = exts
+            for potential_location in potential_locations:
+                pl = potential_location.format(name=name,ext=ext)
+                if os.path.exists(pl) and os.path.isfile(pl):
+                    return pl
+        return False
+    @classmethod
+    def search_or_extract(cls,basepath,name,exts):
+        data_path = cls.search_files(basepath,name,exts)
+        extstr = '['+','.join(exts)+']' if isinstance(exts,list) else exts
+        if data_path:
+            return data_path
+        zip_path = cls.search_files(basepath,name,'zip')
+        zipextract_path = os.path.join(basepath,'natural_earth')
+        if zip_path:
+            with zipfile.ZipFile(zip_path,'r') as zipfh:
+                filelist = zipfh.namelist()
+                pls = ([f'{name}.{ext}' for ext in exts] + [f'{name}/{name}.{ext}' for ext in exts]
+                       if isinstance(exts,list) else
+                       [f'{name}.{exts}',f'{name}/{name}.{exts}'])
+                if any([pl in filelist for pl in pls]):
+                    print(f'Extracting "{zip_path}" to "{zipextract_path}"...')
+                    zipfh.extractall(zipextract_path)
+                else:
+                    raise ValueError(f'Zipfile "{zip_path}" does not contain nessesary files ({name}.{extstr})')
+            data_path = cls.search_files(basepath,name,exts)
+            if data_path:
+                return data_path
+            raise ValueError(f'Zipfile extracted ({zip_path}), but could not find datafiles ({name}.{extstr})')
+        exts = exts+['zip'] if isinstance(exts,list) else [exts,'zip']
+        extstr = '['+','.join(exts)+']'
+        raise ValueError(f'Could not find any file ({name}.{extstr})')
+    @classmethod
+    def slice_img(cls,img_extent_request,imgda,step=1):
+        if img_extent_request[2]<-89.75:
+            img_extent_request=[-180,180,-90,img_extent_request[3]]
+        if img_extent_request[3]>89.75:
+            img_extent_request=[-180,180,img_extent_request[2],90]
+        img_idx = [[None,None],[None,None]]
+        for i,eir in enumerate(img_extent_request):
+            img_idx[i//2][i%2] = np.abs(imgda['x' if i//2==0 else 'y'].values - eir).argmin()
+        img_slice = {'x':slice(
+                        np.clip(np.min(img_idx[0])-1,0,len(imgda.x.values)),
+                        np.clip(np.max(img_idx[0])-1,0,len(imgda.x.values)),
+                        step),
+                     'y':slice(
+                        np.clip(np.min(img_idx[1])-1,0,len(imgda.y.values)),
+                        np.clip(np.max(img_idx[1])-1,0,len(imgda.y.values)),
+                        step)}
+        img_da = imgda.isel(**img_slice)
+        img_extent = np.array([[o(img_da[c].values) for o in [np.min,np.max]] for c in 'xy']).flatten()
+        return img_extent,img_da
