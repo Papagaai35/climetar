@@ -5,125 +5,158 @@ import numpy as np
 import matplotlib as mpl
 
 class MetarTheme(object):
+    default_theme = './resources/theme2_RHS.json'
     def __init__(self,json_or_file=None):
         self.theme = {}
-        if json_or_file is not None:
-            theme = None
-            try:
-                theme = json.loads(json_or_file)
-            except:
-                try:
-                    if os.path.exists(json_or_file) and os.path.isfile(json_or_file):
-                        with open(json_or_file,'r') as fh:
-                            theme = json.load(fh)
-                except:
-                    pass
-            if theme is not None:
-                self.theme = theme
+        self.load(json_or_file if json_or_file is not None else self.default_theme)
+    def load(self,json_or_file):
+        if len(json_or_file)>255:
+            self.load_json_str(json_or_file)
+        else:
+            if os.path.exists(json_or_file) and os.path.isfile(json_or_file):
+                with open(json_or_file,'r') as fh:
+                    self.theme = json.load(fh)
             else:
-                raise ValueError('Invalid theme passed:\n%s'%json_or_file)
+                self.load_json_str(json_or_file)
+        if self.theme is None:
+            raise ValueError('Invalid theme passed:\n%s'%json_or_file)
+    def load_json_str(self,jsonstr):
+        try:
+            self.theme = json.loads(jsonstr)
+        except:
+            pass
+    def validate_theme(self):
+        assert("facecolor" in self.theme)
+        assert("facealpha" in self.theme)
+        assert("edgecolor" in self.theme)
+        assert("edgealpha" in self.theme)
+        assert("linewidth" in self.theme)
+    
     @classmethod
-    def to_color(cls,color,default_alpha=None,dict_keys=None,deep_dict_keys=None,default_color='k'):
-        if default_alpha is None:
-            default_alpha = [1]
-        if hasattr(dict_keys,'__iter__') and not isinstance(dict_keys,list):
-            dict_keys = list(dict_keys)
+    def argsplit(cls,args):
+        return list((".".join(args)).split("."))
+    @classmethod
+    def is_digit(cls,digit):
+        try:
+            int(digit)
+            return True
+        except ValueError:
+            return False
+    def get_type(self,*args):
+        args = ".".join(self.argsplit(args))
+        types = {
+            'line': ['line','median'],
+            'bar': ['bar'],
+        }
+        for k,v in types.items():
+            if any([args.startswith(s) for s in v]):
+                return k
+        return None
+    def themeget(self,*args):
+        args = self.argsplit(args)
+        result = self.theme
+        skiped_arg = 0
+        for arg in list(args):
+            if arg in result:
+                skiped_arg = 0
+                result = result[arg]
+                if not isinstance(result,dict):
+                    break
+            else:
+                if skiped_arg>1:
+                    break
+                skiped_arg += 1
         
-        if isinstance(color,np.ndarray):
-            kwargs = dict(default_alpha=default_alpha,
-                            dict_keys=dict_keys,
-                            deep_dict_keys=deep_dict_keys,
-                            default_color=default_color)
-            if len(color.shape)==1:
-                return cls.to_color(tuple(list(color)),**kwargs)
+        if isinstance(result,dict) and 'default' in result:
+            return result['default']
+        return result
+    def to_style(self,fc,ec,lw,type=None):
+        fc = fc if isinstance(fc,list) else [fc]
+        ec = ec if isinstance(ec,list) else [ec]
+        lw = lw if isinstance(lw,list) else [lw]
+        maxlen = max(len(fc),len(ec),len(lw))
+        result = []
+        for i in range(maxlen):
+            if type=='line':
+                result.append({'color':ec[i%len(ec)],'linewidth':lw[i%len(ec)]})
+            elif type=='bar':
+                result.append({'color':fc[i%len(fc)],'edgecolor':ec[i%len(ec)],'linewidth':lw[i%len(ec)]})
             else:
-                return cls.to_color(list(color),**kwargs)
-        elif isinstance(color,dict):
-            if dict_keys is None:
-                raise ValueError('Error 1: A list of colors is expected')
-            key_seen = set()
-            key_seen_add = key_seen.add
-            keys = [k for k in (dict_keys+list(color.keys())) if not (k in key_seen or key_seen_add(k))]
-            colordict = {}
-            for k in keys:
-                ddk = None
-                if isinstance(deep_dict_keys,dict) and k in deep_dict_keys:
-                    ddk = deep_dict_keys[k]
-                if k in color:
-                    colordict[k] = cls.to_color(color[k],default_alpha,dict_keys=ddk)
-                elif 'default' in color:
-                    colordict[k] = cls.to_color(color['default'],default_alpha,dict_keys=ddk)
-                else:
-                    colordict[k] = cls.to_color(default_color,default_alpha,dict_keys=ddk)
-            return colordict
-        elif isinstance(color,list) and dict_keys is None:
-            if len(color)>=len(default_alpha):
-                colorlist = []
-                for i, c in enumerate(color):
-                    colorlist.append(mpl.colors.to_rgba(c,default_alpha[i]))
-                return colorlist
-            else:
-                raise ValueError('Error 2: At least %d colors are necessary for this plot. %d given'%(len(default_alpha),len(color)))     
+                result.append({'facecolor':fc[i%len(fc)],'edgecolor':ec[i%len(ec)],'linewidth':lw[i%len(ec)]})
+        return result
+    def to_color(self,color,alpha='ff'):
+        if isinstance(color,dict):
+            return {k:self.to_color(c,alpha) for k,c in color.items() if '__' not in k}
         elif isinstance(color,list):
-            if len(color)>=len(dict_keys):
-                colordict = {}
-                for i,k in enumerate(dict_keys):
-                    colordict[k] = [color[i]]
-                for j in range(i,len(color)):
-                    colordict[f'other_{j:d}'] = [color[j]]
-                return cls.to_color(colordict,default_alpha,dict_keys)
-            else:
-                raise ValueError('Error 2: At least %d colors are necessary for this plot. %d given'%(len(dict_keys),len(color)))     
-        elif isinstance(color,(str,tuple)) and dict_keys is None:
-            colorlist = []
-            for da in default_alpha:
-                colorlist.append(mpl.colors.to_rgba(color,da))
-            return colorlist
-        elif isinstance(color,(str,tuple)):
-            colordict = {}
-            for k in dict_keys:
-                colordict[k] = cls.to_color(color,default_alpha)
-            return colordict
+            return [self.to_color(c,alpha) for c in color]
+        elif isinstance(alpha,dict):
+            return {k:self.to_color(color,a) for k,a in alpha.items() if '__' not in k}
+        elif isinstance(alpha,list):
+            return [self.to_color(color,a) for a in alpha]
         else:
-            raise ValueError('Error 4: Strange inputs:\n'+'\n'.join([n+': '+repr(e) for n,e in {'color':color,'default_alpha':default_alpha,'dict_keys':dict_keys,'default_color':default_color}.items()]))
-    def cel(self,fnname,colors=None,edgecolor=None,linewidth=None,**kwargs):
-        default_color = kwargs.get('default_color','k')
-        if fnname in self.theme:
-            c = colors if colors is not None else self.theme[fnname].get('colors',default_color)
-            e = edgecolor if edgecolor is not None else self.theme[fnname].get('edgecolor','none')
-            l = linewidth if linewidth is not None else self.theme[fnname].get('linewidth',.5)
-        else:
-            c = colors if colors is not None else default_color
-            e = edgecolor if edgecolor is not None else 'none'
-            l = linewidth if linewidth is not None else .5
-        c = self.to_color(c,**kwargs)
-        e = self.to_color(e)[0] if e not in ['none',None] else 'none'
-        l = 0 if e=='none' else l
-        return c,e,l
-    def cmapcel(self,fname,colors=None,edgecolor=None,linewidth=None,cmap=None,
-                default_alpha=None,dict_keys=None,default_cmap=None,default_color='k'):
-        if fname in self.theme:
-            cm = cmap if cmap is not None else self.theme[fnname].get('cmap')
-            c = colors if colors is not None else self.theme[fnname].get('colors')
-            e = edgecolor if edgecolor is not None else self.theme[fnname].get('edgecolor','none')
-            l = linewidth if linewidth is not None else self.theme[fnname].get('linewidth',.5)
-        else:
-            cm, c = cmap, colors
-            e = edgecolor if edgecolor is not None else 'none'
-            l = linewidth if linewidth is not None else .5
-        if cm is None and default_cmap:
-            cm = default_cmap
-        if c is None:
-            if cm is not None:
-                cmap_obj = mpl.cm.get_cmap(cm)
-                if dict_keys is not None:
-                    cs = cmap_obj(np.linspace(0,1,max(1,len(dict_keys))))
-                    c = dict(zip(dict_keys,cs))
-                else:
-                    c = cmap_obj(max(1,len(default_alpha or [1])))                
-            else:
-                c = default_color
-        c = self.to_color(c,default_alpha=default_alpha,dict_keys=dict_keys)
-        e = self.to_color(e)[0] if e not in ['none',None] else 'none'
-        l = 0 if e=='none' else l
-        return cm, c, e, l
+            return self.color_plus_alpha(color,alpha)
+    def color_plus_alpha(self,color,alpha='ff'):
+        if color=='none':
+            color,alpha =  '#000000','00'
+        alpha = alpha if isinstance(alpha,float) else int(alpha,16)/255
+        return mpl.colors.to_hex(mpl.colors.to_rgba(color,alpha),keep_alpha=True)
+    def get(self,*args):
+        args = self.argsplit(args)
+        fc = self.themeget('facecolor',*args),self.themeget('facealpha',*args)
+        fc = self.to_color(*fc)
+        ec = self.themeget('edgecolor',*args),self.themeget('edgealpha',*args)
+        ec = self.to_color(*ec)
+        lw = self.themeget('linewidth',*args)
+        lw = 0. if (ec[0]=='#' and ec[-2:]=='00') or ec=='none' else lw
+        return self.to_style(fc, ec, lw, self.get_type(*args))
+    def get_ci(self,*args):
+        return self.get("median",*args) + self.get("confidence",*args)
+    def get_set(self,*args):
+        args = self.argsplit(args)
+        cs = self.themeget('colorsets',*args)
+        fa = self.themeget('facealpha',*args)
+        ec = self.themeget('edgecolor',*args),self.themeget('edgealpha',*args)
+        ec = self.to_color(*ec)
+        lw = self.themeget('linewidth',*args)
+        lw = 0. if (ec[0]=='#' and ec[-2:]=='00') or ec=='none' else lw
+        ty = self.get_type(*args)
+        
+        if all(self.is_digit(k) for k in cs.keys()):
+            cs = dict(sorted({int(k):v for k,v in cs.items()}.items(),key=lambda i: i[0]))
+        
+        result = {}
+        for k,c in cs.items():
+            if isinstance(k,str) and '__' in k:
+                continue
+            result[k] = []
+            fa = fa if isinstance(fa,list) else [fa]
+            for a in fa:
+                result[k].append(self.to_style(self.to_color(c,a),ec,lw,ty)[0])
+        return result
+    def get_setT(self,*args,indexes=None):
+        stylesetT = []
+        styleset = self.get_set(*args)
+        sublevels = max(len(v) for v in styleset.values())
+        indexes = indexes if indexes is not None else list(styleset.keys())
+        for i in range(sublevels):
+            stylesT = {}
+            for name,style in styleset.items():
+                if name not in indexes:
+                    continue
+                for k,v in style[i%len(style)].items():
+                    if k not in stylesT:
+                        stylesT[k] = []
+                    stylesT[k].append(v)
+            stylesetT.append(stylesT)
+        if len(stylesetT)==1:
+            return stylesetT[0]
+        return stylesetT
+    def get_from_set(self,*args):
+        args = self.argsplit(args)
+        fc = self.themeget('colorsets',*args),self.themeget('facealpha',*args)
+        fc = self.to_color(*fc)
+        ec = self.themeget('edgecolor',*args),self.themeget('edgealpha',*args)
+        ec = self.to_color(*ec)
+        lw = self.themeget('linewidth',*args)
+        lw = 0. if (ec[0]=='#' and ec[-2:]=='00') or ec=='none' else lw
+        return self.to_style(fc, ec, lw, self.get_type(*args))

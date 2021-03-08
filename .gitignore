@@ -1,6 +1,7 @@
 # CliMETAR specifics
 resources/ne*.zip
 resources/NE*.zip
+resources/natural_earth/
 data/*.metar
 downloads/*.txt
 downloads/*.csv

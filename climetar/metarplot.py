@@ -157,23 +157,21 @@ class MetarPlotter(object):
             raise ValueError('The axis must be polar for a wind_compass_* plot, not %s.'%ax.name)
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
+    
     @classmethod
     def prepare_maps(cls):
         global cartopy, xr, rasterio
         import cartopy
         import xarray as xr
-        import rasterio
-        
+        import rasterio    
     def load_map_raster(self,name):
         tif_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['tif','tiff'])
         da = xr.open_rasterio(tif_path)
         da = da.transpose('y','x','band')
         return da
-    
     def load_map_shape(self,name):
         shp_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['shp'])
         return cartopy.io.shapereader.Reader(shp_path)
-    
     def map_stock_img(self,ax,zoom=.99,transform=None):
             trans = transform if transform is not None else cartopy.crs.PlateCarree()
             img_extent = np.array(ax.get_extent(crs=trans))+[-1/zoom,1/zoom,-1/zoom,1/zoom]
@@ -979,6 +977,127 @@ class MetarPlotter(object):
         ax.legend(handles,data.columns,loc=9,ncol=4,bbox_to_anchor=(.5,-.15),
                   labelspacing=.15,handlelength=1.5,handletextpad=0.4,fontsize='small',framealpha=0)
     
+    def plotset_ymwide_tmin_tmax(self,savefig=None):
+        fig = plt.figure(figsize=(6.3,2.1))
+        width = .86
+        ax = fig.add_axes([.01,.01,width,.98])
+        self.plot_ym_cycle_tmin_tmax(ax)
+        
+        ax2 = fig.add_axes([width+.02,.01,1-width-.03,.98])
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_tmin_tmax',default_alpha=[1,.6,.38,.15],dict_keys=['tmin','tmax'])
+        legends = [
+            mplLegendSubheading('Maximum'),
+            mpl.lines.Line2D([],[],color=colors['tmax'][0], label='Median'),
+            mpl.patches.Patch(facecolor=colors['tmax'][1], label='50% ci'),
+            mpl.patches.Patch(facecolor=colors['tmax'][2], label='90% ci'),
+            mpl.patches.Patch(facecolor=colors['tmax'][3], label='99% ci'),
+            mplLegendSubheading('Minimum'),
+            mpl.lines.Line2D([],[],color=colors['tmin'][0], label='Median'),
+            mpl.patches.Patch(facecolor=colors['tmin'][1], label='50% ci'),
+            mpl.patches.Patch(facecolor=colors['tmin'][2], label='90% ci'),
+            mpl.patches.Patch(facecolor=colors['tmin'][3], label='99% ci'),
+        ]
+        ax2.legend(handles=legends,
+            bbox_to_anchor=(.5,.5),
+            loc='center',
+            handler_map={
+                mplLegendSubheading:mplLegendSubheadingHandler(),
+            })
+        ax2.set_axis_off()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
+    def plotset_ymwide_wcet(self,savefig=None):
+        fig = plt.figure(figsize=(6.3,2.1))
+        width = .85
+        ax = fig.add_axes([.01,.01,width,.98])
+        self.plot_ym_cycle_wcet(ax)
+        
+        ax2 = fig.add_axes([width+.02,.01,1-width-.03,.98])
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_wcet',
+            default_alpha=[1,.6,.38,.15],dict_keys=['data','limits'],deep_dict_keys={'limits':[]})
+          
+        
+        limit_legend = []
+        limits = dict(sorted(map(lambda x: (float(x),x),colors['limits'].keys())))
+        for f1,s in limits.items():
+            if f1==max(limits.keys()):
+                break
+            f2 = list(filter(lambda x: x>f1,limits.keys()))[0]
+            if abs(f1)<299 and abs(f2)<299:
+                f1,f2 = (f1,f2) if abs(f1)<abs(f2) else (f2,f1)
+            label = (f'< {f2:.0f}' if f1<-299 else (
+                     f'> {f1:.0f}' if f2>299 else (
+                     f'{f1:.0f} to {f2:.0f}')))
+            color = tuple(list(colors['limits'][s][0][:3])+[.6])
+            limit_legend.append(mpl.patches.Patch(facecolor=color, label=label))
+        
+        legends = [
+            mpl.lines.Line2D([],[],color=colors['data'][0], label='Median'),
+            mplLegendSpacer(),
+            mplLegendSubheading('Confidence\n  intervals',0),
+            #mplLegendSubheading('intervals',2),
+            mpl.patches.Patch(facecolor=colors['data'][1], label='50%'),
+            mpl.patches.Patch(facecolor=colors['data'][2], label='90%'),
+            mpl.patches.Patch(facecolor=colors['data'][3], label='99%'),
+            mplLegendSpacer(),
+            mplLegendSubheading('Limits'),
+        ]+list(reversed(limit_legend))
+        ax2.legend(handles=legends,
+            bbox_to_anchor=(.5,.5),
+            loc='center',
+            handler_map={
+                mplLegendSubheading:mplLegendSubheadingHandler(),
+                mplLegendSpacer:mplLegendSpacerHandler(),
+            })
+        ax2.set_axis_off()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
+    def plotset_ymwide_wbgt(self,savefig=None):
+        fig = plt.figure(figsize=(6.3,2.1))
+        width = .85
+        ax = fig.add_axes([.01,.01,width,.98])
+        self.plot_ym_cycle_wbgt_simplified(ax)
+        
+        ax2 = fig.add_axes([width+.02,.01,1-width-.03,.98])
+        colors, edgecolor, linewidth = self.theme.cel(
+            'monthly_cycle_wbgt',
+            default_alpha=[1,.6,.38,.15],dict_keys=['data','limits'],deep_dict_keys={'limits':[]})
+          
+        
+        limit_legend = []
+        limits = dict(sorted(map(lambda x: (float(x),x),colors['limits'].keys())))
+        for f1,s in limits.items():
+            if f1==max(limits.keys()):
+                break
+            f2 = list(filter(lambda x: x>f1,limits.keys()))[0]
+            label = (f'< {f2:.0f}' if f1<-299 else (
+                     f'> {f1:.0f}' if f2>299 else (
+                     f'{f1:.0f} to {f2:.0f}')))
+            color = tuple(list(colors['limits'][s][0][:3])+[.6])
+            limit_legend.append(mpl.patches.Patch(facecolor=color, label=label))
+        
+        legends = [
+            mpl.lines.Line2D([],[],color=colors['data'][0], label='Median'),
+            mpl.patches.Patch(facecolor=colors['data'][1], label='50% ci'),
+            mpl.patches.Patch(facecolor=colors['data'][2], label='90% ci'),
+            mpl.patches.Patch(facecolor=colors['data'][3], label='99% ci'),
+            mplLegendSubheading('Limits'),
+        ]+list(reversed(limit_legend))
+        ax2.legend(handles=legends,
+            bbox_to_anchor=(.5,.5),
+            loc='center',
+            handler_map={
+                mplLegendSubheading:mplLegendSubheadingHandler(),
+            })
+        ax2.set_axis_off()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
+    
     def plotset_monthly_cycle(self,savefig=None):
         fig,axs = plt.subplots(nrows=2,ncols=3)
         self.plot_ym_cycle_tmin_tmax(axs[0][0])
@@ -1209,3 +1328,26 @@ class MapPlotHelper(object):
         img_da = imgda.isel(**img_slice)
         img_extent = np.array([[o(img_da[c].values) for o in [np.min,np.max]] for c in 'xy']).flatten()
         return img_extent,img_da
+
+class mplLegendSubheading(object):
+    def __init__(self,s,level=0):
+        self.s = s
+        self.level = level
+        self.len = int(max([len(sp) for sp in self.s.split('\n')])-4)
+    def get_label(self):
+        return ('' if self.level>1 else '\n')+('\u2007'*self.len)
+class mplLegendSubheadingHandler(object):
+    def legend_artist(self,legend,orig_handle,fontsize,handlebox):
+        x0,y0,width,height = handlebox.xdescent, handlebox.ydescent, handlebox.width, handlebox.height
+        fontweight = 'normal' if orig_handle.level>0 else 'bold'
+        text = mpl.text.Text(x0,y0-height*.5,orig_handle.s,fontsize=fontsize,fontweight=fontweight)
+        handlebox.add_artist(text)
+        return text
+class mplLegendSpacer(object):
+    def get_label(self):
+        return ''
+class mplLegendSpacerHandler(object):
+    def legend_artist(self,legend,orig_handle,fontsize,handlebox):
+        text = mpl.text.Text(handlebox.xdescent, handlebox.ydescent,'',fontsize=fontsize)
+        handlebox.add_artist(text)
+        return text
