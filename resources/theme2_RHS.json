@@ -46,7 +46,7 @@
         "default":1.0,
         "bar":0.5,
         "patch":{
-            "default":1.0,
+            "default":0.5,
             "median":1.5
         }
     },
