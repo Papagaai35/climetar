@@ -35,3 +35,6 @@ class StationRepo(object):
             return alias_stationcode, self.stations[alias_stationcode]
         else:
             raise KeyError(f"Station '{stationcode}' could not be found")
+            
+    def __contains__(self,item):
+        return item in self.stations or item in self.aliases

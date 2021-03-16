@@ -5,7 +5,8 @@ import os
 import pandas as pd
 import itertools
 
-from .metar import Metar
+from . import metar, StationRepo
+
 
 def import_files(glob_pattern,rerun_parsed=False,linenr=0):
     imported = []
@@ -32,11 +33,10 @@ def import_files(glob_pattern,rerun_parsed=False,linenr=0):
 
 class MetarFiles(object):
     default_datastore = './data'
-    stations_json_file = './resources/stations.json'
                       
     def __init__(self,datastore=None):
         self.datastore = datastore if datastore is not None else self.default_datastore
-        self.repo = None
+        self.repo = StationRepo()
                       
     def _index_init(self):
         for filepath in glob.iglob(os.path.join(self.datastore,'*','*.metar')):
@@ -47,7 +47,7 @@ class MetarFiles(object):
             filedirbase = os.path.basename(filedir)
 
             station,timespan = filedirbase.strip(), filebase.strip()
-            if station in self.repo['stations'] or station in self.repo['aliases']:
+            if station in self.repo:
                 if station not in self.index:
                     self.index[station] = {}
                 if timespan.isnumeric() and len(timespan)==4:
@@ -64,17 +64,18 @@ class MetarFiles(object):
                         self.index[station][year] = min([period_from,self.index[station][year][0]]), max([period_to,self.index[station][year][1]])
                     else:
                         self.index[station][year] = period_from, period_to
-                    
-    def load_station_data(self,stations_json_file=None):
-        file = stations_json_file or self.stations_json_file
-        with open(file,'r') as fh:
-            self.repo = json.load(fh)
     
     def import_chunck(self,indf,chuncknr=0):
         metar_parsed = []
         for index, row in indf.iterrows():
             try:
-                mo = Metar(row['metar'],year=row['valid'].year,month=row['valid'].month,stationid=row['station'],chunck=chuncknr,linenr=index,debug=False)
+                mo = metar.Metar(
+                    row['metar'],
+                    year=row['valid'].year,month=row['valid'].month,
+                    stationid=row['station'],
+                    chunck=chuncknr,
+                    linenr=index,
+                    debug=False)
                 mo.parse()
                 mo.handle()
                 metar_parsed.append(mo.to_dict())
