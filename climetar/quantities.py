@@ -116,7 +116,7 @@ class Quantity(object):
         if number is None or pd.isnull(number):
             return np.nan, 0
         lennum, sign, greater = len(number), 1, 0
-        if (number in ['',('/'*lennum),('M'*lennum)] or
+        if (number in ['',('/'*lennum),('M'*lennum),('X'*lennum)] or
             number in cls.nanvalues):
             return np.nan, 0
         number = number.replace('O','0')
