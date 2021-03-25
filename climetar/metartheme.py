@@ -47,6 +47,7 @@ class MetarTheme(object):
         types = {
             'line': ['line','median'],
             'bar': ['bar'],
+            'scatter': ['scatter']
         }
         for k,v in types.items():
             if any([args.startswith(s) for s in v]):
@@ -81,6 +82,8 @@ class MetarTheme(object):
                 result.append({'color':ec[i%len(ec)],'linewidth':lw[i%len(ec)]})
             elif type=='bar':
                 result.append({'color':fc[i%len(fc)],'edgecolor':ec[i%len(ec)],'linewidth':lw[i%len(ec)]})
+            elif type=='scatter':
+                result.append({'color':fc[i%len(fc)],'edgecolors':ec[i%len(ec)],'linewidths':lw[i%len(ec)]})
             else:
                 result.append({'facecolor':fc[i%len(fc)],'edgecolor':ec[i%len(ec)],'linewidth':lw[i%len(ec)]})
         return result
