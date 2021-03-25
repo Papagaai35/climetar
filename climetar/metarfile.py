@@ -80,7 +80,7 @@ class MetarFiles(object):
                 mo.handle()
                 metar_parsed.append(mo.to_dict())
             except Exception as exc:
-                raise ValueError('Could not parse metar at index %d:%d:\n%s' % (chuncknr,index,line['metar'])) from exc
+                raise ValueError('Could not parse metar at index %d:%d:\n%s' % (chuncknr,index,row['metar'])) from exc
         
         df = pd.DataFrame(metar_parsed)
         df['calc_color'] = metar.Metar.calc_color(df.vis,df.sky_ceiling)
