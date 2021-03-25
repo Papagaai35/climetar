@@ -223,16 +223,19 @@ def solve_kepler_eq_rad(M,e,max_iterations=20):
 class Astro(object):
     solar_twilights = {'astronomical':-18.,'nautical':-12.,'civil':-6.,'sun':-.833,}
     
-    def __init__(self,lon=None,lat=None,station=None,unix=None,year=None,tz='UTC'):
+    def __init__(self,lon=None,lat=None,station=None,unix=None,year=None,tz=None):
         self.lon = lon
         self.lat = lat
         self.tz = tz
         self.unix = unix
+        self.station_data = {}
                           
         if station is not None and (self.lon is None or self.lat is None):
             sr = StationRepo()
             s,sd = sr.get_station(station)
-            self.lon, self.lat, self.tz = sd['latitude'], sd['longitude'], sd['timezone']
+            self.station_data = sd
+            self.lon, self.lat = sd['latitude'], sd['longitude']
+            self.tz = tz if tz is not None else sd['timezone']
         if self.lon is None and self.lat is None:
             raise ValueError()
         self.tz = self.tz if self.tz is not None else 'UTC'
@@ -241,6 +244,9 @@ class Astro(object):
             if year is None:
                 raise ValueError()
             self.unix = self.year_to_unix(year,'H')
+        self.year = pd.to_datetime(self.unix,unit='s',origin='unix').strftime('%Y').astype(int).value_counts().idxmax()
+        
+        #[print(getattr(self,attr)) for attr in 'lon,lat,tz,station_data,year'.split(',')]
     
     @classmethod
     def year_to_unix(cls,year,freq=None,add_time=None):
