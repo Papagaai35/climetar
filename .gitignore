@@ -7,6 +7,7 @@ downloads/*.txt
 downloads/*.csv
 Untitled*.ipynb
 results/
+Dev_*.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
