@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 from .svgpath2mpl import parse_path
 
-from . import metar, quantities, MetarTheme, StationRepo
+from . import metar, quantities, MetarTheme, StationRepo, Astro
     
 class MetarPlotter(object):    
     def __init__(self,**settings):
@@ -38,11 +38,13 @@ class MetarPlotter(object):
         }
         #self.locale = settings.get('lang','en_GB.utf8')
         self.locales = {}
-                
+        
         self.station = None
         self.station_data = None
+        self.stations_on_map = []
         self.df = None
         self.pdf = None
+        self.astro = None
         self.filters = {}
         self.years = {}
         
@@ -81,7 +83,13 @@ class MetarPlotter(object):
         
         self.reset_filters()
         self.years = {}
-            
+    def get_astro(self,station=None,year=None,force=False):
+        if force or self.astro is None:
+            station = station if station is not None else self.station
+            year = year if year is not None else int(pd.Timestamp.today().strftime('%Y'))
+            self.astro = Astro(station=self.station,year=year)
+        return self.astro
+    
     def reset_filters(self):
         self.pdf = self.df.copy(deep=True)
         self.filters = dict([(k,(None,None,None)) for k in ['year','month','day','hour','minutes_valid']])
@@ -202,6 +210,7 @@ class MetarPlotter(object):
         self.pdf['wind_dir_catdeg'] = np.take(catcenters,self.pdf.wind_dir_catindex)
         self.pdf['wind_dir_catrad'] = np.deg2rad(self.pdf.wind_dir_catdeg)
     
+    # Wind properties
     def plot_wind_compass_dir_freq(self,ax,unit='%',cat=True):
         style = self.theme.get("bar.wind")[0]
         quantity = quantities.Fraction
@@ -894,6 +903,74 @@ class MetarPlotter(object):
         if return_colorcodes:
             return colorcodes
     
+    def plot_ym_solar(self,ax,offsetutc=True,legend=False):
+        style = self.theme.get_setT('solar')
+        noonstyle = self.theme.get('scatter.solar_noon')[0]
+        astro = self.get_astro()
+        smx, sdf, sds = astro.solar_matrix()
+        days_in_year = smx.shape[0]+1
+        
+        #cmap = plt.get_cmap('cividis')
+        #twilight_keys = ['night','astronomical','nautical','civil','day']
+        #colors = {k:[cmap(i/(len(twilight_keys)-1))] for i,k in enumerate(twilight_keys)}
+        #noon_colors, noon_edgecolor, noon_linewidth = 'k', 'k', .5
+        
+        colors = np.array([mpl.colors.to_rgba(c) for c in style['facecolor']])
+        smx_colored = colors[smx.T,:]
+        ims = ax.imshow(smx_colored,
+            origin='lower',aspect='auto',
+            extent=(1,days_in_year,0,24))
+        
+        noon_time = sdf.noon.dt.hour + sdf.noon.dt.minute/60 + sdf.noon.dt.second/3600
+        ax.scatter(noon_time.index,noon_time.values,s=1.5,marker=',',**noonstyle)
+        
+        first_day_of_month_doys = np.array([
+            pd.Timestamp("{y:04d}-{m:02d}-01".format(m=m,y=astro.year)).dayofyear for m in range(1,13)]
+            + [days_in_year]) #+next year 01-Jan
+        middle_day_of_month_doys = (first_day_of_month_doys[1:]+first_day_of_month_doys[:-1])/2
+        monthabbr = dict([(m,datetime.datetime.strptime("%02d"%m,"%m").strftime("%b")) for m in range(1,13)])
+        month_markers = ax.scatter(first_day_of_month_doys,np.full(first_day_of_month_doys.shape,-0.45),
+                marker='|',color='k')
+        month_markers.set_clip_on(False)
+        
+        ax.set_xlim(1,days_in_year)
+        ax.set_xticks(middle_day_of_month_doys)
+        ax.set_xticklabels(monthabbr.values())
+        ax.set_xlabel(astro.year)
+        ax.set_xticks(np.arange(1,366),minor=True)
+
+        ax.set_ylim(0,24)
+        ax.set_yticks(np.arange(0,25,3))
+        ax.set_yticks(np.arange(0,25),minor=True)
+        
+        if astro.tz==astro.station_data.get('timezone'):
+            if offsetutc:
+                tzoffset = sdf.noon.dt.tz_localize(astro.tz).dt.strftime('%z')
+                tzoffset = tzoffset.str[:3] + ':' + tzoffset.str[3:]
+                label = "UTC "+"/".join(list(tzoffset.unique()))
+            else:
+                label = astro.tz
+            ax.set_ylabel(f'Lokale Tijd ({label})')
+        else:
+            ax.set_ylabel(f'Tijd ({astro.tz})')
+        ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%dh"))
+
+        if legend:
+            legend_elements = {
+                'Middaguur': mpl.lines.Line2D([],[],color=noon_colors[0],lw=noon_size),
+                'Dag': mpl.patches.Patch(facecolor=colors['day'][0],edgecolor='k'),
+                'Civiele schemering': mpl.patches.Patch(facecolor=colors['civil'][0],edgecolor='k'),
+                'Nautische schemering': mpl.patches.Patch(facecolor=colors['nautical'][0],edgecolor='k'),
+                'Astronomische schemering': mpl.patches.Patch(facecolor=colors['astronomical'][0],edgecolor='k'),
+                'Nacht': mpl.patches.Patch(facecolor=colors['night'][0],edgecolor='k'),
+            }
+            ax.legend(handles=legend_elements.values(),
+                      labels=legend_elements.keys(),
+                      ncol=3,#len(legend_elements),
+                      bbox_to_anchor=(.5,-.1),
+                      loc='upper center',
+            )
+    
     def plotset_ymwide_tmin_tmax(self,savefig=None):
         fig = plt.figure(figsize=(6.3,2.1))
         width = .80 #.86
@@ -1155,6 +1232,36 @@ class MetarPlotter(object):
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()  
+    def plotset_ymwide_solar(self,savefig=None):
+        fig = plt.figure(figsize=(6.3,2.1))
+        width = .80
+        ax = fig.add_axes([.05,.10,width,.85])
+        self.plot_ym_solar(ax,legend=False)
+        
+        ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
+        style = self.theme.get_set('patch.solar')
+        nooncolor = self.theme.get('solar_noon')[0]['facecolor']
+        
+        legends = [
+            mpl.lines.Line2D([],[],label='Middaguur',color=nooncolor,lw=1.5),
+            mpl.patches.Patch(label='Dag',**style['day'][0]),
+            mpl.patches.Patch(label='Nacht',**style['night'][0]),
+            mplLegendSubheading('Schemering'),
+            mpl.patches.Patch(label='Civiel',**style['civil'][0]),
+            mpl.patches.Patch(label='Nautisch',**style['nautical'][0]),
+            mpl.patches.Patch(label='Astronomisch',**style['astronomical'][0]),
+        ]
+        ax2.legend(handles=legends,
+            bbox_to_anchor=(.5,.5),
+            loc='center',
+            handler_map={
+                mplLegendSubheading:mplLegendSubheadingHandler(),
+                mplLegendSpacer:mplLegendSpacerHandler(),
+            })
+        ax2.set_axis_off()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
     
     def plotset_monthly_cycle(self,savefig=None):
         fig,axs = plt.subplots(nrows=2,ncols=3)
@@ -1194,6 +1301,8 @@ class MetarPlotter(object):
         self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'Y_cloud_cover.png') if savefig else None)
         self.plotset_ymwide_color(savefig=os.path.join(dirname_figs,'Y_color_state.png') if savefig else None)
         self.plotset_wind(savefig=os.path.join(dirname_figs,'Y_wind.png') if savefig else None)
+        
+        self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
     
     # Non-meteo plots
     def plotset_logo(self,savefig=None):
@@ -1202,7 +1311,7 @@ class MetarPlotter(object):
     def plotset_map(self,stations=None,zoom=1,clat=None,clon=None,figsize=None,savefig=None):
         self.prepare_maps()
         if stations is None:
-            stations = []
+            stations = self.stations_on_map
         if self.station not in stations and self.station is not None:
             stations = [self.station] + stations
         if clat is None or clon is None:
