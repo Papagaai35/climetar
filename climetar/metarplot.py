@@ -65,7 +65,7 @@ class MetarPlotter(object):
             filename = os.path.join(self.filepaths['data'],self.station_data['icao']+'.metar')
         if (not os.path.exists(filename) or
             not os.path.isfile(filename) ):
-            raise ValueError(f'Could not find data file in "{filename}"')
+            raise ValueError(f'Kon het databestand niet vinden "{filename}"')
         
         self.df = pd.read_csv(filename,
             sep='\x1f',index_col=0,parse_dates=['time'],
@@ -137,7 +137,7 @@ class MetarPlotter(object):
         elif isinstance(converter, collections.Iterable):
             return data_series.apply(converter[1])
         else:
-            raise ValueError('Could not %s convert from %s',(value,unit))
+            raise ValueError('Kon eenheid %s niet converteren naar %s',(value,unit))
     @classmethod
     def realign_polar_xticks(cls,ax):
         for theta, label in zip(ax.get_xticks(), ax.get_xticklabels()):
@@ -155,7 +155,7 @@ class MetarPlotter(object):
     @classmethod
     def config_polar(cls,ax):
         if ax.name!='polar':
-            raise ValueError('The axis must be polar for a wind_compass_* plot, not %s.'%ax.name)
+            raise ValueError('De assen voor een wind_compass_* plot, moeten polair zijn, niet %s.'%ax.name)
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
     
@@ -176,27 +176,36 @@ class MetarPlotter(object):
     def map_stock_img(self,ax,zoom=.99,transform=None):
             trans = transform if transform is not None else cartopy.crs.PlateCarree()
             img_extent = np.array(ax.get_extent(crs=trans))+[-1/zoom,1/zoom,-1/zoom,1/zoom]
-            hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'NE1_HR_LC_SR_W_DR',['tif','tiff','zip']))
-            if zoom < 1 or not hires_available:
-                imgda = self.load_map_raster('NE1_LR_LC_SR_W_DR')
-                step = int(np.clip(np.ceil(.5/zoom),1,None))
-                img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,step)
-            else:
-                imgda = self.load_map_raster('NE1_HR_LC_SR_W_DR')
-                img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,1 if zoom>=1.33 else 2)
-            ax.imshow(img_da.values,
-                origin='upper',
-                transform=trans,
-                extent=img_extent,
-                zorder=-2)
-            hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
-            if zoom < 1 or not hires_available:
-                shp = self.load_map_shape('ne_50m_admin_0_countries')
-            else:
-                shp = self.load_map_shape('ne_10m_admin_0_countries')
-            sf = cartopy.feature.ShapelyFeature(shp.geometries(),trans,
-                facecolor='none',edgecolor='#666666',linewidth=.75,zorder=-1)
-            ax.add_feature(sf,zorder=-1)
+            try:
+                hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'NE1_HR_LC_SR_W_DR',['tif','tiff','zip']))
+                if zoom < 1 or not hires_available:
+                    imgda = self.load_map_raster('NE1_LR_LC_SR_W_DR')
+                    step = int(np.clip(np.ceil(.5/zoom),1,None))
+                    img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,step)
+                else:
+                    imgda = self.load_map_raster('NE1_HR_LC_SR_W_DR')
+                    img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,1 if zoom>=1.33 else 2)
+                ax.imshow(img_da.values,
+                    origin='upper',
+                    transform=trans,
+                    extent=img_extent,
+                    zorder=-2)
+            except ValueError:
+                print('De kaartachtergrond-bestanden konden niet worden gevonden. Kaart wordt geplot zonder achtergrond.')
+                print('Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
+            
+            try:
+                hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
+                if zoom < 1 or not hires_available:
+                    shp = self.load_map_shape('ne_50m_admin_0_countries')
+                else:
+                    shp = self.load_map_shape('ne_10m_admin_0_countries')
+                sf = cartopy.feature.ShapelyFeature(shp.geometries(),trans,
+                    facecolor='none',edgecolor='#666666',linewidth=.75,zorder=-1)
+                ax.add_feature(sf,zorder=-1)
+            except ValueError:
+                print('De Landgrens-bestanden konden niet worden gevonden. Kaart wordt geplot zonder grenzen.')
+                print('Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
         
     def categorize_wind_dirs(self):
         catborders = [0,11.25,33.75,56.25,78.75,101.25,123.75,146.25,168.75,
@@ -1428,15 +1437,15 @@ class MetarPlotter(object):
             stdout=subprocess.PIPE,
             cwd=dirname)
     def generate_monthly_pdf(self):
-        print(f'Figures {self.station}:',end=' ',flush=True)
+        print(f'Figuren {self.station}:',end=' ',flush=True)
         self.generate_monthly_plots()
         print(f'TEX',end=' ',flush=True)
         self.generate_monthly_tex()
         print(f'PDF',end=' ',flush=True)
         self.generate_monthly_pdf_from_tex()
-        print(f'Done.',flush=True)
+        print(f'Klaar.',flush=True)
             
-        print('PDF can be found at "%s"'%os.path.join(self.filepaths['output'],self.station,self.station_data['icao'].upper()+"_monthly.pdf"))
+        print('De PDF kan gevonden worden in "%s"'%os.path.join(self.filepaths['output'],self.station,self.station_data['icao'].upper()+"_monthly.pdf"))
         
 class MapPlotHelper(object):
     @classmethod
@@ -1475,17 +1484,17 @@ class MapPlotHelper(object):
                        if isinstance(exts,list) else
                        [f'{name}.{exts}',f'{name}/{name}.{exts}'])
                 if any([pl in filelist for pl in pls]):
-                    print(f'Extracting "{zip_path}" to "{zipextract_path}"...')
+                    print(f'Uitpakken van "{zip_path}" naar "{zipextract_path}"...')
                     zipfh.extractall(zipextract_path)
                 else:
-                    raise ValueError(f'Zipfile "{zip_path}" does not contain nessesary files ({name}.{extstr})')
+                    raise ValueError(f'Zipfile "{zip_path}" bevat niet de benodigde bestanden ({name}.{extstr})')
             data_path = cls.search_files(basepath,name,exts)
             if data_path:
                 return data_path
-            raise ValueError(f'Zipfile extracted ({zip_path}), but could not find datafiles ({name}.{extstr})')
+            raise ValueError(f'Zipfile uitgepakt ({zip_path}), maar kon de bestanden niet vinden ({name}.{extstr})')
         exts = exts+['zip'] if isinstance(exts,list) else [exts,'zip']
         extstr = '['+','.join(exts)+']'
-        raise ValueError(f'Could not find any file ({name}.{extstr})')
+        raise ValueError(f'Kon de benodigde bestanden niet vinden ({name}.{extstr})')
     @classmethod
     def slice_img(cls,img_extent_request,imgda,step=1):
         if img_extent_request[2]<-89.75:
