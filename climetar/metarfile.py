@@ -83,8 +83,8 @@ class MetarFiles(object):
                 raise ValueError('Could not parse metar at index %d:%d:\n%s' % (chuncknr,index,line['metar'])) from exc
         
         df = pd.DataFrame(metar_parsed)
-        df['calc_color'] = Metar.calc_color(df.vis,df.sky_ceiling)
-        df['relh'] = Metar.calc_relh(df.temp,df.dwpt)
+        df['calc_color'] = metar.Metar.calc_color(df.vis,df.sky_ceiling)
+        df['relh'] = metar.Metar.calc_relh(df.temp,df.dwpt)
         df = df[['type', 'station', 'stationid', 'time', 'date', 'mod',
                  'wind_dir', 'windvar_from', 'windvar_to', 'wind_spd', 'wind_gust',
                  'cavok', 'vis', 'visdir', 'vis2', 'vis2dir',
