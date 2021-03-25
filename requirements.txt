@@ -1,10 +1,9 @@
 # This file may be used to create an environment using:
 # $ conda create --name <env> --file <this file>
 # platform: linux-64
-cartopy~=0.17.0
-conda~=4.7.12
-matplotlib~=3.2.1=pypi_0
-numpy~=1.18.4=pypi_0
-pandas~=0.25.3=py37he6710b0_0
-rasterio~=1.0.21=py37hc38cc03_0
-xarray~=0.14.1=py_1
+cartopy>=0.17.0
+matplotlib>=3.1.1
+numpy>=1.17.4
+pandas>=0.25.3
+rasterio>=1.0.21
+xarray>=0.14.1
