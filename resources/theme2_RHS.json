@@ -8,7 +8,8 @@
         "relh":"#a90061",
         "wind":"#39870c",
         "vism":"#42145f",
-        "ceiling":"#e17000"
+        "ceiling":"#e17000",
+        "solar_noon":"k"
     },
     "facealpha":{
         "default":"ff",
@@ -72,6 +73,13 @@
             "YLO2":"#ffb612",
             "AMB":"#e17000",
             "RED":"#d52b1e"
+        },
+        "solar":{
+            "night":"#42145fff",
+            "astronomical":"#a90061ff",
+            "nautical":"#d52b1eff",
+            "civil":"#e17000ff",
+            "day":"#f9e11eff"
         },
         "precipitation_codes":{
             "__comment__":{
