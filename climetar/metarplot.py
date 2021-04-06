@@ -1380,7 +1380,7 @@ class MetarPlotter(object):
                            )
         ax.set_extent(extent,crs=trans)
         self.map_stock_img(ax,zoom)
-        plt.tight_layout()
+        #plt.tight_layout()
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
