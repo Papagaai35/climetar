@@ -1,6 +1,8 @@
 from .quantities import *
 from .metar import *
 
+from .fetchmetar import MetarFetcher
+
 from .stationrepo import StationRepo
 from .metartheme import MetarTheme
 from .metarfile import MetarFiles, import_files
