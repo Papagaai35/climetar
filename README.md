@@ -3,6 +3,11 @@ CliMETAR (spreek uit klie-*mee*-tar) is een tool om eenvoudig klimaatdata te ext
 
 CliMETAR is ontwikkeld door de Joint Meteorologische Groep, in 2020/2021.
 
+## Onwikkeling
+Ondanks dat de ontwikkeling van CliMETAR in een vergevorderd statium is, moeten er nog wel een paar dingen gebeuren:
+* [ ] Spellingscontrole van de huidige documentatie
+* [ ] Script om de datakwaliteit & -kwantiteit van een bepaald station inzichtelijk te maken.
+
 ## Gebruik
 CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab. Voor meer info over Jupyter, ga naar [https://confluence.kixs.mindef.nl/display/OP/JupyterHub+ontwikkelomgevingen]()
 
