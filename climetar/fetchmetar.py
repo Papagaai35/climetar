@@ -38,7 +38,7 @@ class MetarFetcher(object):
         elif isinstance(stations,str):
             stations = [stations]
         else:
-            raise ValueError("Stations must be a list, tuple, dict or string containing the station abbreviations")
+            raise ValueError("Stations moet een list, tuple, dict of string zijn, bevattende de ICAO afkoringen van de velden")
         return stations
     
     def load_station_data(self,stations_json_file=None):
@@ -61,13 +61,13 @@ class MetarFetcher(object):
         alternatives = self.get_alternatives(num)
         alternative_stations = list(alternatives.keys())
         if len(alternative_stations)==1:
-            print("Could not find {}.".format(alternative_stations[0]))
+            print("Station niet gevonden: {}.".format(alternative_stations[0]))
         elif len(alternative_stations)>1:
-            print("Could not find {} and {}.".format(
+            print("Stations niet gevonden: {} and {}.".format(
                 ', '.join(alternative_stations[:-1]), alternative_stations[-1]))
-        print(f'Please note that for American Airports FAA-abbreviations are used.')
-        print(f'Did you mean:\n')
-        print("{:5s} {:5s} {:30.30s} {:s}".format('','ICAO','Name','Timezone'))
+        print(f'Let wel: Voor amerikaanse vliegvelden worden de FAA-afkortingen gebruikt.')
+        print(f'Bedoelde je misschien een van de onderstaande stations:\n')
+        print("{:5s} {:5s} {:30.30s} {:s}".format('','ICAO','Naam','Tijdzone'))
         print("="*70)
         for s,alts in alternatives.items():
             sstr = s
@@ -91,13 +91,13 @@ class MetarFetcher(object):
     def download(self,filename=None,overwrite=False,**kwargs):
         if not self.all_stations_exsist():
             errormsg = (
-                "Could not find all stations.".format(self.unknown_stations[0])
+                "Stations niet gevonden.".format(self.unknown_stations[0])
                 if len(self.unknown_stations)<1 else (
-                "Could not find {}.".format(self.unknown_stations[0])
+                "Station niet gevonden: {}.".format(self.unknown_stations[0])
                 if len(self.unknown_stations)==1 else
-                "Could not find {} and {}.".format(
+                "Stations niet gevonden: {} and {}.".format(
                     ', '.join(self.unknown_stations[:-1]), self.unknown_stations[-1])))
-            errormsg += "\nRun show_alternatives() to show alternative locations"
+            errormsg += "\nGebruik show_alternatives() om alternative velden te bekijken"
             raise ValueError(errormsg)
             
         urlparams = {
@@ -127,12 +127,12 @@ class MetarFetcher(object):
             with open(filename, filemode) as fh:
                 data = download_data_from_uri(uri)
                 fh.write(data)
-            display(HTML(f'Downloaded file to <code>{filename}</code>'))
+            display(HTML(f'Bestand gedownload naar <code>{filename}</code>'))
         else:
             display(HTML(f'''
-No internet access detected.<br />
-Please download the file form this URL and store in <code>downloads/asos.txt</code><br />
-The download could take a few seconds.<br />
+Geen internet verbinding detected.<br />
+Download het bestand van de volgende website, en sla deze op in de map <code>downloads/</code><br />
+De download kan enkele minuten duren.<br />
 <a href="{uri}">{uri}</a>'''))
         
     @classmethod
@@ -175,7 +175,7 @@ The download could take a few seconds.<br />
             except Exception as exp:
                 time.sleep(5)
             attempt += 1
-        raise ValueError("Exhausted attempts to download, returning empty data")
+        raise ValueError("Download is verschillende keren mislukt.")
         
         
         
