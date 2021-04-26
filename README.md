@@ -9,7 +9,7 @@ Ondanks dat de ontwikkeling van CliMETAR in een vergevorderd statium is, moeten 
 * [ ] Script om de datakwaliteit & -kwantiteit van een bepaald station inzichtelijk te maken.
 
 ## Gebruik
-CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab. Voor meer info over Jupyter, ga naar [https://confluence.kixs.mindef.nl/display/OP/JupyterHub+ontwikkelomgevingen]()
+CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab. Voor meer info over Jupyter, ga naar [https://confluence.kixs.mindef.nl/display/OP/JupyterHub+ontwikkelomgevingen](https://confluence.kixs.mindef.nl/display/OP/JupyterLab)
 
 1. Ga naar [https://jupyter.mindef.nl/](), en log in.
 2. Kies voor de **Machine Learning**-omgeving.
@@ -25,4 +25,4 @@ git clone https://git.mindef.nl/djgommers/climetar.git
 * Kaartmateriaal:
   Natural Earth 
 
-CliMETAR is geschreven in `python3` en $\LaTeX$ en maakt gebruik van de packages `numpy`, `pandas` `matplotlib`, `sqlite3`, en data van Natural Earth
+CliMETAR is geschreven in `python3` en LaTeX en maakt gebruik van de packages `numpy`, `pandas` `matplotlib`, `sqlite3`, en data van Natural Earth
