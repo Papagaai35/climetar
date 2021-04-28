@@ -12,7 +12,7 @@ def import_files(glob_pattern,rerun_parsed=False,linenr=0):
     imported = []
     for filepath in glob.iglob(glob_pattern):
         filedir, filename = os.path.split(filepath)
-        print(filepath)
+        #print(filepath)
         filebase, fileext = os.path.splitext(str(filename))
         
         if 'parsed' in filebase and not rerun_parsed:
@@ -23,7 +23,7 @@ def import_files(glob_pattern,rerun_parsed=False,linenr=0):
         mfs = MetarFiles()
         if mfs.import_raw(filepath):
             imported.append(filepath)
-            print('Imported "%s"'%filepath)
+            print('"%s" geimporteerd'%filepath)
         
             if 'parsed' in filebase:
                 new_filename = filebase+'.parsed'
@@ -80,7 +80,7 @@ class MetarFiles(object):
                 mo.handle()
                 metar_parsed.append(mo.to_dict())
             except Exception as exc:
-                raise ValueError('Could not parse metar at index %d:%d:\n%s' % (chuncknr,index,row['metar'])) from exc
+                raise ValueError('Kon metar-bericht niet verwerken (blok %d, regel %d):\n%s' % (chuncknr,index,row['metar'])) from exc
         
         df = pd.DataFrame(metar_parsed)
         df['calc_color'] = metar.Metar.calc_color(df.vis,df.sky_ceiling)
@@ -109,25 +109,25 @@ class MetarFiles(object):
         num_lines = sum(1 for line in open(filepath))
         df_kwargs = {'usecols':['station','valid','metar'],'dtype':str,'parse_dates':['valid'],'dayfirst':True}
         if chunk is None:
-            print('Parsing %s, at once'%(filepath))
+            print('Analyseren van %s, in een keer'%(filepath))
             df = pd.read_csv(filename,**df_kwargs)
             self.import_chunck(chunk_df,c)
         elif versiontuple(pd.__version__) >= versiontuple('1.2.0'):
-            print('Parsing %s in %d chunks of %d lines'%(filepath,num_lines//chunk+1,chunk))
+            print('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,chunk))
             with pd.read_csv(filepath,chunksize=chunk,**df_kwargs) as reader:
                 c=1
                 for chunk_df in reader:
                     self.import_chunck(chunk_df,c)
-                    print('Parsed chunk %d'%c)
+                    print('Blok %d geanalyseerd'%c)
                     c+=1
         else:
-            print('Parsing %s in %d chunks of %d lines'%(filepath,num_lines//chunk+1,chunk))
+            print('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,chunk))
             tfr = pd.read_csv(filepath,chunksize=chunk,**df_kwargs)
             c=1
             
             for chunk_df in tfr:
                 self.import_chunck(chunk_df,c)
-                print('Parsed chunk %d'%c)
+                print('Blok %d geanalyseerd'%c)
                 c+=1
         return True
         
