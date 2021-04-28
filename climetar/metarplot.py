@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys, os
+import zipfile
 
 import numpy as np
 import pandas as pd
@@ -1297,21 +1298,34 @@ class MetarPlotter(object):
             dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
             if not os.path.exists(dirname_figs):
                 pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
+        print("Figuren %s:"%self.station,end=' ',flush=True)
         self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
+        print("Map",end=' ',flush=True)
         
         self.plotset_ymwide_tmin_tmax(savefig=os.path.join(dirname_figs,'Y_temp.png') if savefig else None)
         self.plotset_ymwide_wcet(savefig=os.path.join(dirname_figs,'Y_wcet.png') if savefig else None)
         self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'Y_wbgt.png') if savefig else None)
+        print("Temp",end=' ',flush=True)
         self.plotset_ymwide_relh(savefig=os.path.join(dirname_figs,'Y_relh.png') if savefig else None)
+        print("RH",end=' ',flush=True)
         self.plotset_ymwide_vism(savefig=os.path.join(dirname_figs,'Y_vis.png') if savefig else None)
+        print("Vis",end=' ',flush=True)
+        self.plotset_wind(savefig=os.path.join(dirname_figs,'Y_wind.png') if savefig else None)
+        print("Wind",end=' ',flush=True)
         self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'Y_ceiling.png') if savefig else None)
+        self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'Y_cloud_cover.png') if savefig else None)
+        print("Cloud",end=' ',flush=True)
         
         self.plotset_ymwide_precipdays(savefig=os.path.join(dirname_figs,'Y_precipitation.png') if savefig else None)
-        self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'Y_cloud_cover.png') if savefig else None)
+        print("Percip",end=' ',flush=True)
         self.plotset_ymwide_color(savefig=os.path.join(dirname_figs,'Y_color_state.png') if savefig else None)
-        self.plotset_wind(savefig=os.path.join(dirname_figs,'Y_wind.png') if savefig else None)
-        
+        print("Color",end=' ',flush=True)
+                
         self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
+        print("Solar",end=' ',flush=True)
+        
+        print("Klaar")
+        print("Afbeeldingen kunnen gevonden worden in %s/"%dirname_figs)
     
     # Non-meteo plots
     def plotset_logo(self,savefig=None):
