@@ -14,7 +14,7 @@ from .fetchmetar import MetarFetcher
 
 from .stationrepo import StationRepo
 from .metartheme import MetarTheme
-from .metarfile import MetarFiles, import_files
+from .metarfile import MetarFiles, analyse_files, format_period
 from .planetary import Astro
 
 from .metarplot import MetarPlotter

@@ -1,41 +1,69 @@
 import csv
 import datetime
 import glob
+import math
 import os
+import time
 import pandas as pd
 import itertools
 
 from . import metar, StationRepo
 
+def analyse_files(glob_pattern,rerun_parsed=False,output_folder=None):
+    if isinstance(glob_pattern,list):
+        return analyse_globs(glob_pattern,rerun_parsed,output_folder)
+    else:
+        return analyse_globs([glob_pattern],rerun_parsed,output_folder)
 
-def import_files(glob_pattern,rerun_parsed=False,linenr=0):
-    imported = []
+def analyse_globs(glob_patterns,rerun_parsed=False,output_folder=None):
+    analysed = []
+    output_files = []
+    for gp in glob_patterns:
+        gpa, gpo = analyse_glob(gp,rerun_parsed,output_folder)
+        analysed += gpa
+        output_files += gpo
+    if len(analysed)==0 and not rerun_parsed:
+        print('Er waren geen (nieuwe) bestanden aangetroffen, om te analyseren...')
+    elif len(analysed)==0 and rerun_parsed:
+        print('Er waren geen bestanden aangetroffen, om te analyseren...')
+    elif len(output_files)==1:
+        print('Geanalyseerde metarberichten zijn opgeslagen in "%s"'%output_files[0])
+    elif len(output_files)>1:
+        print('Geanalyseerde metarberichten zijn opgeslagen in "%s" en "%s"'%(
+            '", "'.join(output_files[:-1]),output_files[-1]))
+    return analysed, output_files
+
+def analyse_glob(glob_pattern,rerun_parsed=False,output_folder=None):
+    analysed = []
+    output_files = set()
     for filepath in glob.iglob(glob_pattern):
         filedir, filename = os.path.split(filepath)
         #print(filepath)
         filebase, fileext = os.path.splitext(str(filename))
         
-        if 'parsed' in filebase and not rerun_parsed:
+        if 'analysed' in filebase and not rerun_parsed:
             continue
         if not os.path.isfile(filepath) or not os.access(filepath,os.R_OK):
             continue
         
-        mfs = MetarFiles()
+        mfs = MetarFiles(datastore=output_folder)
         if mfs.import_raw(filepath):
-            imported.append(filepath)
-            print('"%s" geimporteerd'%filepath)
-        
-            if 'parsed' in filebase:
-                new_filename = filebase+'.parsed'
-                new_filename += fileext if fileext!='' else '.csv'
-                os.rename(filepath,os.path.join(filedir,new_filename))
-        return imported
+            analysed.append(filepath)
+                   
+            new_filename = filebase if 'analysed' in filebase else filebase+'.analysed'
+            new_filename += fileext if fileext!='' else '.csv'
+            new_filepath = os.path.join(filedir,new_filename)
+            if new_filepath!=filepath:
+                os.rename(filepath,new_filepath)
+        output_files |= mfs.exported_files
+    return analysed, sorted(list(output_files))
 
 class MetarFiles(object):
     default_datastore = './data'
                       
     def __init__(self,datastore=None):
         self.datastore = datastore if datastore is not None else self.default_datastore
+        self.exported_files = set()
         self.repo = StationRepo()
                       
     def _index_init(self):
@@ -104,6 +132,7 @@ class MetarFiles(object):
                 export_df.to_csv(filename,sep='\x1f',mode='a',header=False)
             else:
                 export_df.to_csv(filename,sep='\x1f',mode='w',header=True)
+            self.exported_files.add(filename)
     def import_raw(self,filepath,chunk=3e4):
         versiontuple = lambda v: tuple(map(int, (v.split("."))))
         num_lines = sum(1 for line in open(filepath))
@@ -111,24 +140,97 @@ class MetarFiles(object):
         if chunk is None:
             print('Analyseren van %s, in een keer'%(filepath))
             df = pd.read_csv(filename,**df_kwargs)
-            self.import_chunck(chunk_df,c)
+            self.import_chunck(chunk_df,1)
         elif versiontuple(pd.__version__) >= versiontuple('1.2.0'):
-            print('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,chunk))
+            numchunks = num_lines//chunk+1
+            times = []
+            print('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,numchunks,chunk))
             with pd.read_csv(filepath,chunksize=chunk,**df_kwargs) as reader:
                 c=1
+                print('Blok 1/%d wordt geanalyseerd. ETA %s'%(numchunks,format_period(num_lines/1e3)),end='\r',flush=True)
                 for chunk_df in reader:
+                    start = time.time()
                     self.import_chunck(chunk_df,c)
-                    print('Blok %d geanalyseerd'%c)
+                    end = time.time()
+                    duration = end-start
+                    times.append(duration)
+                    avgduration = mean(times[-3:] if len(times)>3 else times)
+                    totduration = avgduration * ((num_lines-(c*chunk))/chunk)
+                    msg = 'Blok %d/%d geanalyseerd in %s.'%(c,numchunks,format_period(duration))
+                    if c!=numchunks:
+                        msg += ' ETA %s.'%format_period(totduration)
+                    else:
+                        msg += ' Klaar.'
+                    print(msg+(' '*40),end='\r',flush=True)
                     c+=1
         else:
+            numchunks = num_lines//chunk+1
+            times = []
             print('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,chunk))
             tfr = pd.read_csv(filepath,chunksize=chunk,**df_kwargs)
             c=1
-            
+            print('Blok 1/%d wordt geanalyseerd. ETA %s'%(numchunks,format_period(num_lines/1e3)),end='\r',flush=True)
             for chunk_df in tfr:
+                start = time.time()
                 self.import_chunck(chunk_df,c)
-                print('Blok %d geanalyseerd'%c)
+                end = time.time()
+                duration = end-start
+                times.append(duration)
+                avgduration = sum(times[-3:] if len(times)>3 else times) / min(3,len(times))
+                totduration = avgduration * ((num_lines-(c*chunk))/chunk)
+                msg = 'Blok %d/%d geanalyseerd in %s.'%(c,numchunks,format_period(duration))
+                if c!=numchunks:
+                    msg += ' ETA %s.'%format_period(totduration)
+                else:
+                    msg += ' Klaar.'
+                print(msg+(' '*40),end='\r',flush=True)
                 c+=1
+        print("\n")
         return True
         
-        
+def format_period(secs,si=False,precision=2):
+    def split(value,precision):
+        negative = False
+        if value < 0.:
+            value = -value
+            negative = True
+        elif value == 0.:
+            return 0., 0
+        expof10 = int(math.log10(value))
+        if expof10>0:
+            expof10 = (expof10//3)*3
+        else:
+            expof10 = ((-expof10+3)//3) * -3
+        value *= 10 ** (-expof10)
+        if value >= 500.:
+            value /= 1000.
+            expof10 += 3
+        if negative:
+            value *= -1
+        return value, int(expof10)
+    def prefix(expof10):
+        SI_PREFIX_UNTIS = u"yzafpnμm kMGTPEZY"
+        prefix_levels = (len(SI_PREFIX_UNTIS)-1)//2
+        si_level = expof10//3
+        if abs(si_level) > prefix_levels:
+            return "e%d"%expof10
+        return SI_PREFIX_UNTIS[si_level+prefix_levels]
+    
+    if secs<60. or si:
+        svalue, expof10 = split(secs,precision)
+        prefix = prefix(expof10).strip()
+        valuestr = ('%%.%df'%precision)%svalue
+        return (f'{valuestr} {prefix}s').strip().replace("  "," ")
+    else:
+        steps = {"sec":1,"min":60,"h":3600,"days":86400,"years":31557600}
+        for i,(n,d) in enumerate(steps.items()):
+            
+            pn = list(steps.keys())[max(0,i-1)]
+            nn = list(steps.keys())[min(i+1,len(steps)-1)]
+            pd, nd = steps[pn], steps[nn]
+            if secs/nd<1.:
+                break
+        if i+1<len(steps):
+            return ("%.0f %s %.1f %s"%(secs//d,n,(secs-((secs//d)*d))/pd,pn)).strip().replace("  "," ")
+        else:
+            return ("%.0f %s %.1f %s"%(secs/d,n)).strip().replace("  "," ")
