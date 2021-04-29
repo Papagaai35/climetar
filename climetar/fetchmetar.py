@@ -130,10 +130,9 @@ class MetarFetcher(object):
             display(HTML(f'Bestand gedownload naar <code>{filename}</code>'))
         else:
             display(HTML(f'''
-Geen internet verbinding detected.<br />
-Download het bestand van de volgende website, en sla deze op in de map <code>downloads/</code><br />
-De download kan enkele minuten duren.<br />
-<a href="{uri}">{uri}</a>'''))
+Geen internetverbining gedetecteerd.<br />
+Waarschijnlijk maak je gebruik van een netwerk zonder internet, zoals MULAN. In dat geval kun je gebruik maken van <a href="https://iodwwerkplek.mindef.nl/">Internet op de Werkplek</a><br /><br />
+Download het bestand van de volgende website, en sla deze op in de map "downloads". De download kan enkele minuten duren.<br /><a href="{uri}">{uri}</a>'''))
         
     @classmethod
     def path_check(cls,filename=None,overwrite=False):
