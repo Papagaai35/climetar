@@ -98,6 +98,26 @@ class MetarPlotter(object):
         for k,v in filters.items():
             if hasattr(self,f'filter_{k}'):
                 getattr(self,f'filter_{k}')(*v)
+    def apply_filters(self,filters):
+        for k,v in filters.items():
+            if k not in self.filters:
+                raise ValueError('Kan niet filteren op "%s", kies een van year,month,day,hour,minutes_valid')
+            if '..' in v:
+                v1,v2 = v.split('..',2)
+                getattr(self,f'filter_{k}')(gte=float(v1),lte=float(v2))
+            else:
+                if v[1]=='=':
+                    v = v[0]+v[2:]
+                if v[0] in '>':
+                    getattr(self,f'filter_{k}')(gte=float(v[1:]))
+                elif v[0] in '<':
+                    getattr(self,f'filter_{k}')(lte=float(v[1:]))
+                elif v[0] in '=':
+                    getattr(self,f'filter_{k}')(eq=float(v[1:]))
+                else:
+                    raise ValueError("Filterwaarde moet beginnen met >, <, of =, of een bereik aangeven [vanaf]..[tot]")
+                
+                
     def filter_series(self,series,gte=None,lte=None,eq=None):
         if gte is not None and lte is not None:
             if gte==lte:
@@ -1450,6 +1470,10 @@ class MetarPlotter(object):
                 latexfile],
             stdout=subprocess.PIPE,
             cwd=dirname)
+        for file in os.listdir(dirname):
+            filepath = os.path.join(dirname,file)
+            if os.path.isfile(filepath) and not filepath.endswith(".pdf"):
+                os.remove(filepath)
     def generate_monthly_pdf(self):
         print(f'Figuren {self.station}:',end=' ',flush=True)
         self.generate_monthly_plots()
