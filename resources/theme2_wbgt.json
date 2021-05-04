@@ -1,0 +1,180 @@
+{
+    "facecolor":{
+        "default":"k",
+        "temp":"#d52b1e",
+        "tmax":"#d52b1e",
+        "tmin":"#01689b",
+        "dwpc":"#01689b",
+        "relh":"#a90061",
+        "wind":"#39870c",
+        "vism":"#42145f",
+        "ceiling":"#e17000",
+        "solar_noon":"k"
+    },
+    "facealpha":{
+        "default":"ff",
+        "limits":"99",
+        "confidence":[
+            "aa",
+            "77",
+            "44"
+        ],
+        "precipitation_codes":[
+            "ff",
+            "cc",
+            "80",
+            "40"
+        ]
+    },
+    "edgecolor":{
+        "default":"none",
+        "bar":{
+            "default":"k"
+        },
+        "patch":{
+            "default":"k"
+        },
+        "median":{
+            "default":"k",
+            "tmax":"#d52b1e",
+            "tmin":"#01689b"
+        }
+    },
+    "edgealpha":{
+        "default":"ff"
+    },
+    "linewidth":{
+        "default":1.0,
+        "bar":0.5,
+        "patch":{
+            "default":0.5,
+            "median":1.5
+        }
+    },
+    "colorsets":{
+        "cloud":{
+            "SKC":"#007bc7",
+            "NCD":"#007bc7",
+            "CLR":"#007bc7",
+            "NSC":"#007bc7",
+            "FEW":"#8fcae7",
+            "SCT":"#ddeff8",
+            "BKN":"#eef7fb",
+            "OVC":"#b4b4b4",
+            "VV":"#696969"
+        },
+        "color":{
+            "BLU+":"#8fcae7",
+            "BLU":"#007bc7",
+            "WHT":"#ffffff",
+            "GRN":"#39870c",
+            "YLO":"#f9e11e",
+            "YLO1":"#f9e11e",
+            "YLO2":"#ffb612",
+            "AMB":"#e17000",
+            "RED":"#d52b1e"
+        },
+        "solar":{
+            "night":"#42145fff",
+            "astronomical":"#a90061ff",
+            "nautical":"#d52b1eff",
+            "civil":"#e17000ff",
+            "day":"#f9e11eff"
+        },
+        "precipitation_codes":{
+            "__comment__":{
+                "RA":"Rain, Groen",
+                "DZ":"Drizzle, Mosgroen",
+                "SN":"Snow, Donkerblauw",
+                "IC":"Ice Crystals, Violet",
+                "PL":"Ice Pellets, Geel",
+                "GR":"Hail, Oranje",
+                "GS":"Graupel, Donkergeel",
+                "UP":"Unknown Precipitation, Grijs 6",
+                "FZRA":"Freezing Rain, Rood",
+                "FZDZ":"Freezing Drizzle, Robijnrood",
+                "FZFG":"Freezing Fog, Roze"
+            },
+            "RA":"#39870c",
+            "DZ":"#777c00",
+            "SN":"#01689b",
+            "IC":"#a90061",
+            "PL":"#f9e11e",
+            "GR":"#e17000",
+            "GS":"#ffb612",
+            "UP":"#696969",
+            "FZRA":"#d52b1e",
+            "FZDZ":"#ca005d",
+            "FZFG":"#f092cd"
+        },
+        "precipitation_aggr":{
+            "Rain":"#39870c",
+            "Snow":"#01689b",
+            "Hail":"#ffb612",
+            "RainSnow":"#76d2b6",
+            "RainHail":"#94710a",
+            "SnowHail":"#42145f",
+            "RainSnowHail":"#ca005d",
+            "Unknown":"#696969"
+        },
+        "sigwx":{
+            "__comment__":{
+                "TS":"Thunderstorm, Paars",
+                "FZ":"Freezing, Rood",
+                "SH":"Showers, Groen",
+                "FG":"Fog, Donkergeel",
+                "VA":"Volcanic Ash, Donkerbruin",
+                "BR":"Mist, Geel",
+                "HZ":"Haze, Geel (dekking 60%)",
+                "DU":"Dust, Mosgroen (dekking 60%)",
+                "FU":"Smoke, Donkerbruin (dekking 60%)",
+                "SA":"Sand, Bruin (dekking 60%)",
+                "PY":"Spray, Mintgroen",
+                "SQ":"Squall, Hemelblauw",
+                "PO":"Light Dust/Sand Whrils, Mosgroen (dekking 60%)",
+                "DS":"Duststorm, Mosgroen",
+                "SS":"Sandstorm, Bruin",
+                "FC":"Funnel Cloud, Violet"
+            },
+            "TS":"#42145fff",
+            "FZ":"#d52b1eff",
+            "SH":"#39870cff",
+            "FG":"#ffb612ff",
+            "VA":"#673327ff",
+            "BR":"#f9e11eff",
+            "HZ":"#f9e11e99",
+            "DU":"#777c0099",
+            "FU":"#67332799",
+            "SA":"#94710a99",
+            "PY":"#76d2b6ff",
+            "SQ":"#007bc7ff",
+            "PO":"#777c0099",
+            "DS":"#777c00ff",
+            "SS":"#94710aff",
+            "FC":"#a90061ff"
+        },
+        "limits": {
+            "wcet":{
+                "-300":"#2a77b9",
+                "-55":"#ad6a00",
+                "-44":"#fde4cf",
+                "-28":"#a1b6dd",
+                "-9":"#83aaa1",
+                "300":"#ffffff00"
+            },
+            "wbgt":{
+                "-300":"#8fcae7",
+                "18": "#79d030",
+                "20": "#fff600",
+                "22": "#fdca0c",
+                "24": "#ff8d00",
+                "26": "#ff6600",
+                "28": "#ff0000",
+                "30": "#f316c2",
+                "32": "#b40957",
+                "34": "k",
+                "300":"k"
+            }
+        }
+    }
+}

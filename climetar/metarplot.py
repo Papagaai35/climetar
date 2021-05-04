@@ -679,13 +679,14 @@ class MetarPlotter(object):
             
         t2m = self.convert_unit(quantity.units['°C'],self.pdf.temp)
         d2m = self.convert_unit(quantity.units['°C'],self.pdf.dwpt)
-        vp = 6.112 * np.exp((17.67*d2m)/(d2m+243.5))
-        self.pdf['wbgt'] = 0.657 * t2m + 0.393 * vp + 3.94
+        vp_hPa = 6.112 * np.exp((17.67*d2m)/(d2m+243.5))
+        #self.pdf['wbgt'] = 0.657 * t2m + 0.393 * vp_hPa + 3.94
+        self.pdf['wbgt'] = 1.1 + 0.66 * t2m + 0.29 * vp_hPa
         
         dailydata = self.pdf.groupby(self.pdf.time.dt.date).agg(wbgt=('wbgt','max')).reset_index()
         dailydata['time'] = pd.to_datetime(dailydata.time,dayfirst=True)
         gbo = dailydata.groupby(dailydata.time.dt.month)       
-        data = gbo['wbgt'].quantile([.01,.05,.25,.5,.75,.95,.99])
+        data = gbo['wbgt'].quantile([.005,.05,.25,.5,.75,.95,.995])
         data = self.convert_unit(quantity.units[unit],data).unstack()
         data = data.append(data.loc[1].rename(13))
         data = data.append(data.loc[12].rename(0))
@@ -694,8 +695,8 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
         ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,**style[2])
         ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
-        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
-        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
+        ax.fill_between(x=data.index,y1=data[.005],y2=data[.05],zorder=-1,**style[3])
+        ax.fill_between(x=data.index,y1=data[.95],y2=data[.995],zorder=-1,**style[3])
         
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
@@ -707,8 +708,8 @@ class MetarPlotter(object):
         if ylim is not None:
             ax.set_ylim(*ylim)
         else:
-            ax.set_ylim(np.floor(data[.01].min()/5)*5,
-                        np.ceil(data[.99].max()/5)*5)
+            ax.set_ylim(np.floor(data[.005].min()/5)*5,
+                        np.ceil(data[.995].max()/5)*5)
         ax.set_xlim(begin-.5,end+.5)
         ax.set_title('WBGT [%s]'%unit)
     def plot_ym_cycle_relh(self,ax,unit='%'):
@@ -1088,6 +1089,7 @@ class MetarPlotter(object):
         limit_styles = self.theme.get_set('patch.limits.wbgt')
         
         limit_legend = []
+        ymin, ymax = ax.get_ylim()
         for f1,ls in limit_styles.items():
             if f1==max(limit_styles.keys()):
                 break
@@ -1097,16 +1099,18 @@ class MetarPlotter(object):
             label = (f'< {f2:.0f}' if f1<-299 else (
                      f'> {f1:.0f}' if f2>299 else (
                      f'{f1:.0f} to {f2:.0f}')))
-            limit_legend.append(mpl.patches.Patch(label=label,**ls[0]))
+            if ymin <= f1 < ymax or ymin < f2 <= ymax:
+                limit_legend.append(mpl.patches.Patch(label=label,**ls[0]))
         
         legends = [
             mpl.lines.Line2D([],[],label='Median',**style[0]),
             mplLegendSubheading('Confidence\nintervals:',4),
             mpl.patches.Patch(**style[1], label='50%'),
             mpl.patches.Patch(**style[2], label='90%'),
-            mpl.patches.Patch(**style[3], label='99%'),
-            mplLegendSubheading('Limits'),
-        ]+list(reversed(limit_legend))
+            mpl.patches.Patch(**style[3], label='99%')]
+        if len(limit_legend)<=8:
+            legends += [mplLegendSubheading('Limits')]
+            legends += list(reversed(limit_legend))
         ax2.legend(handles=legends,
             bbox_to_anchor=(.5,.5),
             loc='center',
