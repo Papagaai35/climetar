@@ -9,9 +9,7 @@ Ondanks dat de ontwikkeling van CliMETAR in een vergevorderd statium is, moeten 
 * [ ] Script om de datakwaliteit & -kwantiteit van een bepaald station inzichtelijk te maken.
 
 ## Gebruik
-CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab. Voor meer info:
-* [Jupyter binnen Defensie](https://confluence.kixs.mindef.nl/display/OP/JupyterLab) (MULAN)
-* [Jupyter](https://jupyterlab.readthedocs.io) (via Internet op de Werkplek)
+CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab.
 
 1. Ga naar [jupyter.mindef.nl](https://jupyter.mindef.nl/) (via mulan), en log in.
 2. Kies voor de **Machine Learning**-omgeving, en klik op de 'Aanmaken'-knop onderaan de pagina.
@@ -21,6 +19,10 @@ CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab
 git clone https://git.mindef.nl/djgommers/climetar.git
 ```
 5. Na enkele momenten verschijnt er links in de zijbalk een map `climetar`. Open deze map en open het notebook `00. Installeren & Introductie.ipynb` (dmv dubbelklik)
+
+In het eerste notebook `00. Installeren & Introductie.ipynb` wordt ook een korte introductie gegeven op Jupyter. Voor meer info:
+* [Jupyter binnen Defensie](https://confluence.kixs.mindef.nl/display/OP/JupyterLab) (MULAN)
+* [JupyterLab Documentatie](https://jupyterlab.readthedocs.io) (via Internet op de Werkplek; Engels)
 
 ## Databronnen
 * Metar Berichten:
