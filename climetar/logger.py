@@ -50,14 +50,12 @@ class LogFileFormatter(logging.Formatter):
 def getNewLogRecordFactory():
     oldFactory = logging.getLogRecordFactory()
     def newLogRecordFactory(name,level,fn,lno,msg,args,exc_info,func=None,sinfo=None,**kwargs):
-        kwargs.update(dict(name=name,level=level,fn=fn,lno=lno,msg=msg,args=args,exc_info=exc_info,func=func,sinfo=sinfo))
-        print(kwargs)
         if exc_info is not None and len(exc_info)>2 and level>=logging.CRITICAL:
             tb = traceback.extract_tb(exc_info[2])
             fn = tb[-1].filename
             lno = tb[-1].lineno
             func = tb[-1].name
-        return oldFactory(name,level,fn,lno,msg,args,exc_info,func,sinfo)
+        return oldFactory(name,level,fn,lno,msg,args,exc_info,func,sinfo,**kwargs)
     return newLogRecordFactory
 
 def getLogFileHandler(filename='climetar.log'):
