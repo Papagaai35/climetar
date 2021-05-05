@@ -6,12 +6,20 @@ _log = getLogger(__name__)
 import os
 metarfile = '/opt/conda/lib/python3.7/site-packages/matplotlib/mpl-data/stylelib/_classic_test_patch.mplstyle'
 if os.path.isfile(metarfile):
+    modified = False
     with open(metarfile,'r+') as fh:
         lines = fh.readlines()
-        lines = ['#'+line for line in lines if line.startswith("text.kerning_factor")]
+        for line in lines:
+            if line.startswith("text.kerning_factor"):
+                line = '#'+line
+                modified = True
+            else:
+                line = line
         fh.seek(0)
         fh.writelines(lines)
         fh.truncate()
+    if modified:
+        _log.debug('matplotlib: text.kerning_factor lines in _classic_test_patch.mplstyle ignored')
 
 
 # Imports climetar modules
@@ -26,3 +34,5 @@ from .metarfile import MetarFiles, analyse_files, format_period
 from .planetary import Astro
 
 from .metarplot import MetarPlotter
+
+_log.debug('CliMETAR imported')
