@@ -1,4 +1,5 @@
-#type: ignore
+import logging
+_log = logging.getLogger(__name__)
 
 import collections
 import datetime
@@ -178,13 +179,13 @@ class Metar(object):
             self.debug_for = debug
     def parse(self,trend=False):
         rxid = 0
-        
+
         match = re.search(self._regex_unparsed,self.code,re.VERBOSE)
         if match is not None:
             mgd = match.groupdict()
             self.code = mgd['metar'].strip()
             self.trendcode = mgd['trend'].strip()
-        
+
         while rxid<len(self._regexes):
             self.sanitize()
             rxname, rx = self.get_regex_by_index(rxid)
@@ -231,7 +232,7 @@ class Metar(object):
                 self.debug['trends_precode'] = self.code
                 self.debug['trends_preunparsed'] = self.unparsed
             self.parse_trend()
-        
+
         self.code = " ".join([pstr.strip() for pstr in self.parsed])
         self.unparsed = self.unparsed.strip()
     def parse_trend(self):

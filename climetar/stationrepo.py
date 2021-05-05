@@ -1,3 +1,6 @@
+import logging
+_log = logging.getLogger(__name__)
+
 import json
 import os
 
@@ -9,7 +12,7 @@ class StationRepo(object):
         self.stations = self.repo.get("stations",{})
         self.networks = self.repo.get("networks",{})
         self.aliases = self.repo.get("aliases",{})
-    
+
     def load_jsonstr_or_file(self,json_or_file):
         if json_or_file is not None:
             repo = None
@@ -26,7 +29,7 @@ class StationRepo(object):
                 self.repo = repo
             else:
                 raise ValueError('Invalid repo passed:\n%s'%json_or_file)
-                
+
     def get_station(self,stationcode):
         if stationcode in self.stations:
             return stationcode, self.stations[stationcode]
@@ -35,6 +38,6 @@ class StationRepo(object):
             return alias_stationcode, self.stations[alias_stationcode]
         else:
             raise KeyError(f"Station '{stationcode}' could not be found")
-            
+
     def __contains__(self,item):
         return item in self.stations or item in self.aliases

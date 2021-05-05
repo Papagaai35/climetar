@@ -1,9 +1,11 @@
-
 """Module for storing and parsing values with their units.
 
 ToDo:
 * Rewrite to use `pint` [https://pint.readthedocs.io/en/stable/]()
 """
+import logging
+_log = logging.getLogger(__name__)
+
 
 import collections
 import fractions
@@ -16,7 +18,7 @@ import pandas as pd
 
 class Quantity(object):
     """Root object to store values with their unit.
-    
+
     Attributes
     - units (dict):
         keys (str): unit name,
@@ -51,7 +53,7 @@ class Quantity(object):
         lambda x: unicodedata.normalize('NFD', x).encode(
             'ascii', 'ignore').decode("utf-8").lower(),
     ]
-    
+
     def __init__(self,value,unit=None,default_unit=None):
         self.orig = value,unit
         self.value = np.nan
@@ -59,7 +61,7 @@ class Quantity(object):
 
         unit = None if unit=='' else unit
         self.default_unit = None if default_unit=='' else default_unit
-        
+
         if self.default_unit=='' and self.storage_unit!='':
             self.default_unit = self.storage_unit
         if unit is None and self.default_unit!='':
@@ -71,7 +73,7 @@ class Quantity(object):
         if not (isinstance(value, numbers.Real) or unit in self.nonnumeric):
             value, self.greater = self.number_from_str(value)
         self.value = self.convert_from(value,unit)
-    
+
     def __float__(self):
         val = self.value + self.greater
         if self.default_unit!=self.storage_unit:
@@ -99,18 +101,18 @@ class Quantity(object):
             return conversion[0](value)
         else:
             raise ValueError('Could not %s convert from %s',(value,unit))
-    
+
     @classmethod
     def convert_to(cls,value,unit):
         conversion = cls.units[cls.find_unit(unit)]
-        if (    isinstance(conversion, numbers.Real) and 
+        if (    isinstance(conversion, numbers.Real) and
                 isinstance(value, numbers.Real)):
             return value / conversion
         elif isinstance(conversion, collections.Iterable):
             return conversion[1](value)
         else:
             raise ValueError('Could not %s convert to %s',(value,unit))
-    
+
     @classmethod
     def number_from_str(cls,number):
         if number is None or pd.isnull(number):
@@ -135,7 +137,7 @@ class Quantity(object):
             else:
                 number = fractions.Fraction(number)
         return sign*float(number), greater
-    
+
     @classmethod
     def get_unit_translation_dict(cls):
         unittrans = {}
@@ -160,7 +162,7 @@ class Quantity(object):
                     ignorelistlevel.append(k)
             ignorelistall = ignorelistall + ignorelistlevel[:]
         return unittrans
-    
+
     @classmethod
     def find_unit(cls,unit):
         if unit in cls.units:
@@ -173,7 +175,7 @@ class Quantity(object):
             if k in unittrans:
                 return unittrans[k]
         raise KeyError('The unit %s is not defined in %s'%(unit,cls.__name__))
-        
+
 class Direction(Quantity):
     compass_dirs = {
         'N':  0.0, 'NNE': 22.5, 'NE': 45.0, 'ENE': 67.5,
@@ -181,7 +183,7 @@ class Direction(Quantity):
         'S':180.0, 'SSW':202.5, 'SW':225.0, 'WSW':247.5,
         'W':270.0, 'WNW':292.5, 'NW':315.0, 'WNW':337.5
     }
-            
+
     units = {
         'deg': 1,
         'rad': np.pi/180,

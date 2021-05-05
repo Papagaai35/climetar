@@ -1,3 +1,6 @@
+import logging
+_log = logging.getLogger(__name__)
+
 import copy
 import datetime
 import glob
@@ -19,15 +22,15 @@ import matplotlib.pyplot as plt
 from .svgpath2mpl import parse_path
 
 from . import metar, quantities, MetarTheme, StationRepo, Astro
-    
-class MetarPlotter(object):    
+
+class MetarPlotter(object):
     def __init__(self,**settings):
         self.theme = MetarTheme(settings.get('theme'))
         self.station_repo = StationRepo(settings.get('stations_json'))
         self.style = settings.get('style','./resources/climetar.mplstyle')
         if os.path.isfile(self.style):
             plt.style.use(self.style)
-        
+
         self.filepaths = {
             'data': settings.get('folder_data','./data'),
             'output': settings.get('folder_output','./results/MonthlyPDF/'),
@@ -39,7 +42,7 @@ class MetarPlotter(object):
         }
         #self.locale = settings.get('lang','en_GB.utf8')
         self.locales = {}
-        
+
         self.station = None
         self.station_data = None
         self.stations_on_map = []
@@ -48,9 +51,9 @@ class MetarPlotter(object):
         self.astro = None
         self.filters = {}
         self.years = {}
-        
+
         self._load_locales()
-    
+
     def _load_locales(self):
         #locale.setlocale(locale.LC_ALL,self.locale)
         self.locales['monthnames'] = dict([(m,datetime.datetime.strptime("%02d"%m,"%m").strftime("%B")) for m in range(1,13)])
@@ -59,7 +62,7 @@ class MetarPlotter(object):
     def load_data(self,station):
         self.station, self.station_data = self.station_repo.get_station(station)
         self.icao = self.station_data['icao']
-        
+
         filename = os.path.join(self.filepaths['data'],self.station_data['abbr']+'.metar')
         if (not os.path.exists(filename) or
             not os.path.isfile(filename) ):
@@ -67,7 +70,7 @@ class MetarPlotter(object):
         if (not os.path.exists(filename) or
             not os.path.isfile(filename) ):
             raise ValueError(f'Kon het databestand niet vinden "{filename}"')
-        
+
         self.df = pd.read_csv(filename,
             sep='\x1f',index_col=0,parse_dates=['time'],
             dtype=dict([(k,str) for k in [
@@ -81,7 +84,7 @@ class MetarPlotter(object):
         self.df = self.df.drop_duplicates(subset=['stationid','time','metar'])
         self.df = self.df.reset_index(drop=True)
         self.df['minutes_valid'] = (self.df.time.shift(-1)-self.df.time).dt.total_seconds()/60
-        
+
         self.reset_filters()
         self.years = {}
     def get_astro(self,station=None,year=None,force=False):
@@ -90,7 +93,7 @@ class MetarPlotter(object):
             year = year if year is not None else int(pd.Timestamp.today().strftime('%Y'))
             self.astro = Astro(station=self.station,year=year)
         return self.astro
-    
+
     def reset_filters(self):
         self.pdf = self.df.copy(deep=True)
         self.filters = dict([(k,(None,None,None)) for k in ['year','month','day','hour','minutes_valid']])
@@ -116,8 +119,8 @@ class MetarPlotter(object):
                     getattr(self,f'filter_{k}')(eq=float(v[1:]))
                 else:
                     raise ValueError("Filterwaarde moet beginnen met >, <, of =, of een bereik aangeven [vanaf]..[tot]")
-                
-                
+
+
     def filter_series(self,series,gte=None,lte=None,eq=None):
         if gte is not None and lte is not None:
             if gte==lte:
@@ -143,7 +146,7 @@ class MetarPlotter(object):
         self.filters['hour'] = self.filter_series(self.pdf.time.dt.hour,gte,lte,eq)
     def filter_minutes_valid(self,gte=None,lte=None,eq=None):
         self.filters['minutes_valid'] = self.filter_series(self.pdf.minutes_valid,gte,lte,eq)
-    
+
     @classmethod
     def frange(cls,f,default_start,default_end):
         start = (f[0] if f[0] is not None else (
@@ -179,13 +182,13 @@ class MetarPlotter(object):
             raise ValueError('De assen voor een wind_compass_* plot, moeten polair zijn, niet %s.'%ax.name)
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
-    
+
     @classmethod
     def prepare_maps(cls):
         global cartopy, xr, rasterio
         import cartopy
         import xarray as xr
-        import rasterio    
+        import rasterio
     def load_map_raster(self,name):
         tif_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['tif','tiff'])
         da = xr.open_rasterio(tif_path)
@@ -214,7 +217,7 @@ class MetarPlotter(object):
             except ValueError:
                 print('De kaartachtergrond-bestanden konden niet worden gevonden. Kaart wordt geplot zonder achtergrond.')
                 print('Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
-            
+
             try:
                 hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
                 if zoom < 1 or not hires_available:
@@ -227,7 +230,7 @@ class MetarPlotter(object):
             except ValueError:
                 print('De Landgrens-bestanden konden niet worden gevonden. Kaart wordt geplot zonder grenzen.')
                 print('Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
-        
+
     def categorize_wind_dirs(self):
         catborders = [0,11.25,33.75,56.25,78.75,101.25,123.75,146.25,168.75,
                       191.25,213.75,236.25,258.75,281.25,303.75,326.25,348.75,361]
@@ -239,14 +242,14 @@ class MetarPlotter(object):
         self.pdf['wind_dir_compass'] = np.take(catnames,self.pdf.wind_dir_catindex)
         self.pdf['wind_dir_catdeg'] = np.take(catcenters,self.pdf.wind_dir_catindex)
         self.pdf['wind_dir_catrad'] = np.deg2rad(self.pdf.wind_dir_catdeg)
-    
+
     # Wind properties
     def plot_wind_compass_dir_freq(self,ax,unit='%',cat=True):
         style = self.theme.get("bar.wind")[0]
         quantity = quantities.Fraction
         unit = quantity.find_unit(unit)
         self.config_polar(ax)
-        
+
         if cat and 'wind_dir_catrad' not in self.pdf:
             self.categorize_wind_dirs()
         if not cat and 'wind_dir_rad' not in self.pdf:
@@ -259,7 +262,7 @@ class MetarPlotter(object):
         data = gbo['minutes_valid'].sum()/self.pdf.minutes_valid.sum()
         index, values = data.index.values, self.convert_unit(quantity.units[unit],data.values)
         width = (2*np.pi)/len(index)
-        
+
         ax.bar(index, values, width=width,**style)
         maxval = values.max()
         addval = (10**(np.log10(maxval)//1))*(.25 if np.log10(maxval)%1<.4 else (.5 if np.log10(maxval)%1 < 0.7 else 1))
@@ -275,7 +278,7 @@ class MetarPlotter(object):
         quantity = quantities.Speed
         unit = quantity.find_unit(unit)
         self.config_polar(ax)
-                
+
         if cat and 'wind_dir_catrad' not in self.pdf:
             self.categorize_wind_dirs()
         if not cat and 'wind_dir_rad' not in self.pdf:
@@ -312,12 +315,12 @@ class MetarPlotter(object):
             if savefig is not None:
                 plt.savefig(savefig)
                 plt.close()
-    
+
     # Averages per month (average daily cycles e.d)
     def _plot_dh_cycle_hoursteps(self,ax,variable,unit,quantity,title='',ylim=None,style=None):
         style = style if style is not None else self.theme.get_ci()
         unit = quantity.find_unit(unit)
-        
+
         gbo = self.pdf.dropna(subset=[variable]).groupby(self.pdf.time.dt.hour)
         data = gbo[variable].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
@@ -380,7 +383,7 @@ class MetarPlotter(object):
             unit=unit,quantity=quantity,style=style)
     def plot_frequency_gust(self,ax,unit='kt',freq_unit='%'):
         style = self.theme.get("bar.wind")[0]
-                
+
         quantity = quantities.Speed
         unit = quantity.find_unit(unit)
         binval = quantity(99,'kt')[unit]
@@ -408,7 +411,7 @@ class MetarPlotter(object):
         data = self.pdf.groupby('sky_cover')['minutes_valid'].sum().reindex(metar.Metar._cloud_cover_codes.keys()).dropna()
         data = data / self.pdf.minutes_valid.sum()
         index, values = data.index.values, self.convert_unit(freq_quantity.units[freq_unit],data.values)
-        
+
         style = self.theme.get_setT("bar.cloud",indexes=index)
         ax.bar(index, values, **style)
         thx = values.max()*0.05
@@ -434,10 +437,10 @@ class MetarPlotter(object):
         else:
             data = data / self.pdf.minutes_valid.sum()
             index, values = data.index.values, self.convert_unit(freq_quantity.units[freq_unit],data.values)
-            
+
             style = self.theme.get_setT("bar.color",indexes=index)
             ax.bar(index, values, **style)
-            
+
             thx = values.max()*0.05
             for i in range(len(data)):
                 ax.text(i,values[i]+thx,"%3.1f %s"%(values[i],freq_unit),c='k',ha='center',va='bottom')
@@ -447,7 +450,7 @@ class MetarPlotter(object):
     def plot_frequency_precipitation(self,ax,freq_unit='%',colors=None,edgecolor=None,linewidth=None):
         preciptypes = ['RA','DZ','SN','IC','PL','GR','GS','UP','FZRA','FZDZ','FZFG']
         intensitytypes = ['+','','-','VC']
-        
+
         freq_quantity = quantities.Fraction
         freq_unit = freq_quantity.find_unit(freq_unit)
         precipdf = self.pdf.iloc[:,:0]
@@ -473,7 +476,7 @@ class MetarPlotter(object):
             for i in range(precipdf.shape[0]):
                 heights = precipdf.iloc[i,:]*norm
                 bottoms = precipdf.iloc[:i,:].sum()*norm
-                
+
                 barlist[i] = ax.bar(precipdf.columns,
                                     heights,
                                     bottom=bottoms,
@@ -484,13 +487,13 @@ class MetarPlotter(object):
                         ax.text(c,txtheights[c],intensitytypes[i],
                                 horizontalalignment='center',verticalalignment='center',
                                 color='k',fontsize=16)
-                
+
             data = precipdf.sum()
             thx = data.max()*norm*0.05
             for i in range(len(data)):
                 ax.text(i,data.iloc[i]*norm+thx,"%3.1f %s"%(data.iloc[i]*norm,freq_unit),c='k',ha='center',va='bottom')
             ax.set_ylim(0,((data.max()*norm+thx*3)//2+1)*2)
-            
+
             legend_elem = []
             style = self.theme.get("legend_bar.precipitation_codes")
             for i,s in enumerate(precipdf.index.values):
@@ -502,7 +505,7 @@ class MetarPlotter(object):
         ax.set_ylabel('Frequency [%s]'%freq_unit)
     def plot_frequency_sigwx(self,ax,freq_unit='%',colors=None,edgecolor=None,linewidth=None):
         sigwxtypes = ['TS','FZ','SH','FG','VA','BR','HZ','DU','FU','SA','PY','SQ','PO','DS','SS','FC']
-             
+
         freq_quantity = quantities.Fraction
         freq_unit = freq_quantity.find_unit(freq_unit)
         sigwxdf = self.pdf.iloc[:,:0]
@@ -511,9 +514,9 @@ class MetarPlotter(object):
         s = sigwxdf.sum()
         s = s.loc[s>0].sort_values(ascending=False)
         norm = self.convert_unit(freq_quantity.units[freq_unit],1.)/len(self.pdf)
-        
+
         style = self.theme.get_setT("bar.sigwx",indexes=s.index)
-        
+
         ax.bar(s.index,s.values*norm,**style)
         thx = s.max()*norm*0.05
         for i in range(len(s)):
@@ -521,7 +524,7 @@ class MetarPlotter(object):
         ax.set_ylim(0,((s.max()*norm+thx*3)//2+1)*2)
         ax.set_title('Significant Weather');
         ax.set_ylabel('Frequency [%s]'%freq_unit)
-    
+
     def plotset_daily_cycle_legend(self,savefig=None):
         with mpl.rc_context(rc={'font.size':15*1.5}):
             fig,ax = plt.subplots(1,1,figsize=(6*3,1))
@@ -566,13 +569,13 @@ class MetarPlotter(object):
              plt.close()
     def generate_monthly_plots(self):
         basefilters = copy.copy(self.filters)
-        
+
         for month in self.frange(basefilters['month'],1,12):
             print(self.locales['monthabbr'][month],end=' ',flush=True)
             self.reset_filters()
             self.redo_filters(basefilters)
             self.filter_month(eq=month)
-            
+
             dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
             if not os.path.exists(dirname_figs):
                 pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
@@ -580,15 +583,15 @@ class MetarPlotter(object):
             self.plotset_wind(os.path.join(dirname_figs,f'B{month:02d}.png'))
             self.plotset_gust(os.path.join(dirname_figs,f'C{month:02d}.png'))
             self.plotset_wx(os.path.join(dirname_figs,f'D{month:02d}.png'))
-            
+
             self.years[month] = self.pdf.time.dt.year.min(), self.pdf.time.dt.year.max()
-            
+
         self.plotset_daily_cycle_legend(os.path.join(dirname_figs,f'LEGEND.png'))
         self.plotset_logo(os.path.join(dirname_figs,f'LOGO.png'))
-        
+
         self.reset_filters()
         self.redo_filters(basefilters)
-    
+
     # Averages per year (yearly cycles) Plots
     def plot_ym_cycle_tmin_tmax(self,ax,unit='°C'):
         quantity=quantities.Temperature
@@ -621,22 +624,22 @@ class MetarPlotter(object):
         style = self.theme.get_ci('wcet')
         limit_styles = self.theme.get_set('limits.wcet')
         limit_line_styles = self.theme.get_set('line.limits.wcet')
-        quantity = quantities.Temperature 
+        quantity = quantities.Temperature
         quantityWind = quantities.Speed
-        
+
         for f1,ls in limit_styles.items():
             if f1==max(limit_styles.keys()):
                 break
             f2 = min(list(filter(lambda x: x>f1,limit_styles.keys())))
-            
+
             ax.fill_between(x=[-1,14],y1=f1,y2=f2,zorder=-5,**ls[0])
             ax.axhline(f2,zorder=-4,alpha=.8,**limit_line_styles[f1][0])
-        
+
         t2m = self.convert_unit(quantity.units['°C'],self.pdf.temp)
         wind = (self.convert_unit(quantityWind.units['km/h'],self.pdf.wind_spd))**0.16
         self.pdf['wcet'] = 13.12 + 0.6215 * t2m - 11.37 * wind + 0.3965 * t2m * wind
         gbo = self.pdf.dropna(subset=['wcet']).groupby(self.pdf.time.dt.month)
-        
+
         data = gbo['wcet'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
         data = data.append(data.loc[1].rename(13))
@@ -648,7 +651,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
-        
+
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
@@ -666,26 +669,26 @@ class MetarPlotter(object):
     def plot_ym_cycle_wbgt_simplified(self,ax,unit='°C',ylim=None):
         style = self.theme.get_ci('wbgt')
         limit_styles = self.theme.get_set('limits.wbgt')
-        limit_line_styles = self.theme.get_set('line.limits.wbgt')     
-        quantity = quantities.Temperature 
-        
+        limit_line_styles = self.theme.get_set('line.limits.wbgt')
+        quantity = quantities.Temperature
+
         for f1,ls in limit_styles.items():
             if f1==max(limit_styles.keys()):
                 break
             f2 = min(list(filter(lambda x: x>f1,limit_styles.keys())))
-            
+
             ax.fill_between(x=[-1,14],y1=f1,y2=f2,zorder=-5,**ls[0])
             ax.axhline(f2,zorder=-4,**limit_line_styles[f1][0])
-            
+
         t2m = self.convert_unit(quantity.units['°C'],self.pdf.temp)
         d2m = self.convert_unit(quantity.units['°C'],self.pdf.dwpt)
         vp_hPa = 6.112 * np.exp((17.67*d2m)/(d2m+243.5))
         #self.pdf['wbgt'] = 0.657 * t2m + 0.393 * vp_hPa + 3.94
         self.pdf['wbgt'] = 1.1 + 0.66 * t2m + 0.29 * vp_hPa
-        
+
         dailydata = self.pdf.groupby(self.pdf.time.dt.date).agg(wbgt=('wbgt','max')).reset_index()
         dailydata['time'] = pd.to_datetime(dailydata.time,dayfirst=True)
-        gbo = dailydata.groupby(dailydata.time.dt.month)       
+        gbo = dailydata.groupby(dailydata.time.dt.month)
         data = gbo['wbgt'].quantile([.005,.05,.25,.5,.75,.95,.995])
         data = self.convert_unit(quantity.units[unit],data).unstack()
         data = data.append(data.loc[1].rename(13))
@@ -697,7 +700,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
         ax.fill_between(x=data.index,y1=data[.005],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.995],zorder=-1,**style[3])
-        
+
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
@@ -715,9 +718,9 @@ class MetarPlotter(object):
     def plot_ym_cycle_relh(self,ax,unit='%'):
         style = self.theme.get_ci("relh")
         quantity = quantities.Fraction
-        
+
         gbo = self.pdf.dropna(subset=['relh']).groupby(self.pdf.time.dt.month)
-        
+
         data = gbo['relh'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
         data = data.append(data.loc[1].rename(13))
@@ -729,7 +732,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
-        
+
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
@@ -743,9 +746,9 @@ class MetarPlotter(object):
     def plot_ym_cycle_vism(self,ax,unit='km'):
         style = self.theme.get_ci("vism")
         quantity = quantities.Distance
-        
+
         gbo = self.pdf.dropna(subset=['vis']).groupby(self.pdf.time.dt.month)
-        
+
         data = gbo['vis'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
         data = data.append(data.loc[1].rename(13))
@@ -757,7 +760,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
-        
+
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
@@ -771,9 +774,9 @@ class MetarPlotter(object):
     def plot_ym_cycle_ceiling(self,ax,unit='ft'):
         style = self.theme.get_ci('ceiling')
         quantity = quantities.Height
-        
+
         gbo = self.pdf.dropna(subset=['sky_ceiling']).groupby(self.pdf.time.dt.month)
-        
+
         data = gbo['sky_ceiling'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
         data = data.append(data.loc[1].rename(13))
@@ -785,7 +788,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
-        
+
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
@@ -815,7 +818,7 @@ class MetarPlotter(object):
             {'ptype_'+cat:any for cat in preciptypes}).reset_index()
         data['time'] = pd.to_datetime(data.time,dayfirst=True)
         data2 = data.loc[:,['time']]
-        
+
         data2['RainSnowHail'] = (~data.ptype_Ra & data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
         data2['Snow'] = (~data.ptype_Ra & data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
         data2['RainSnow'] = (data.ptype_Ra & data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
@@ -825,7 +828,7 @@ class MetarPlotter(object):
         data2['SnowHail'] = (~data.ptype_Ra & data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
         data2['Unknown'] = (data.ptype_Up).astype(int)
         data3 = data2.groupby([data2.time.dt.year,data2.time.dt.month]).sum().unstack().mean().unstack().T
-        
+
         bottom = data3.cumsum(axis=1).shift(1,axis=1).fillna(0)
         colums = data3.index.values
         handles = []
@@ -845,12 +848,12 @@ class MetarPlotter(object):
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,31)
-        ax.set_title('Precipitation')        
+        ax.set_title('Precipitation')
     def plot_ym_cycle_cloud_type(self,ax,freq_unit='%',legend=False):
         style = self.theme.get_set("bar.cloud")
         freq_quantity = quantities.Fraction
         freq_unit = freq_quantity.find_unit(freq_unit)
-        
+
         data = self.pdf.groupby([self.pdf.time.dt.month,self.pdf.sky_cover])['minutes_valid'].sum().unstack()
         data = np.divide(data,data.sum(axis=1)[:,None]).reindex(metar.Metar._cloud_cover_codes.keys(),axis=1)
         clear_index = data[['SKC','NCD','CLR','NSC']].sum().idxmax()
@@ -859,7 +862,7 @@ class MetarPlotter(object):
         data = self.convert_unit(freq_quantity.units[freq_unit],data)
         begin = data.cumsum(axis=1).shift(1,axis=1).fillna(0)
         colums = data.index.values
-        
+
         handles = []
         for c in data.columns:
             handles.append(
@@ -868,7 +871,7 @@ class MetarPlotter(object):
                     data[c].values,
                     bottom=begin[c].values,
                     **style[c][0]))
-        
+
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
@@ -886,12 +889,12 @@ class MetarPlotter(object):
         style = self.theme.get_set("bar.color")
         freq_quantity = quantities.Fraction
         freq_unit = freq_quantity.find_unit(freq_unit)
-        
+
         colorcodes = ['BLU+','BLU','WHT','GRN','YLO','YLO1','YLO2','AMB','RED']
         data = self.pdf.groupby([self.pdf.time.dt.month,self.pdf.calc_color])['minutes_valid'].sum().unstack()
         data = np.divide(data,data.sum(axis=1)[:,None])
         data = data.reindex(colorcodes,axis=1)
-        
+
         if data['BLU+'].isnull().all():
             colorcodes.remove('BLU+')
         if data['YLO'].isnull().all() and not data[['YLO1','YLO2']].isnull().all().all():
@@ -903,7 +906,7 @@ class MetarPlotter(object):
         data = self.convert_unit(freq_quantity.units[freq_unit],data)
         bottom = data.cumsum(axis=1).shift(1,axis=1).fillna(0)
         colums = data.index.values
-        
+
         handles = []
         for c in data.columns:
             handles.append(
@@ -912,7 +915,7 @@ class MetarPlotter(object):
                     data[c].values,
                     bottom=bottom[c].values,
                     **style[c][0]))
-        
+
         xticks = [3,6,9,12]
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
@@ -927,34 +930,34 @@ class MetarPlotter(object):
         else:
             ax.set_ylim(*ylim)
         ax.set_title('NATO Color State [%s]'%freq_unit)
-        
+
         if legend:
             ax.legend(handles,data.columns,loc=9,ncol=4,bbox_to_anchor=(.5,-.15),
                   labelspacing=.15,handlelength=1.5,handletextpad=0.4,fontsize='small',framealpha=0)
         if return_colorcodes:
             return colorcodes
-    
+
     def plot_ym_solar(self,ax,offsetutc=True,legend=False):
         style = self.theme.get_setT('solar')
         noonstyle = self.theme.get('scatter.solar_noon')[0]
         astro = self.get_astro()
         smx, sdf, sds = astro.solar_matrix()
         days_in_year = smx.shape[0]+1
-        
+
         #cmap = plt.get_cmap('cividis')
         #twilight_keys = ['night','astronomical','nautical','civil','day']
         #colors = {k:[cmap(i/(len(twilight_keys)-1))] for i,k in enumerate(twilight_keys)}
         #noon_colors, noon_edgecolor, noon_linewidth = 'k', 'k', .5
-        
+
         colors = np.array([mpl.colors.to_rgba(c) for c in style['facecolor']])
         smx_colored = colors[smx.T,:]
         ims = ax.imshow(smx_colored,
             origin='lower',aspect='auto',
             extent=(1,days_in_year,0,24))
-        
+
         noon_time = sdf.noon.dt.hour + sdf.noon.dt.minute/60 + sdf.noon.dt.second/3600
         ax.scatter(noon_time.index,noon_time.values,s=1.5,marker=',',**noonstyle)
-        
+
         first_day_of_month_doys = np.array([
             pd.Timestamp("{y:04d}-{m:02d}-01".format(m=m,y=astro.year)).dayofyear for m in range(1,13)]
             + [days_in_year]) #+next year 01-Jan
@@ -963,7 +966,7 @@ class MetarPlotter(object):
         month_markers = ax.scatter(first_day_of_month_doys,np.full(first_day_of_month_doys.shape,-0.45),
                 marker='|',color='k')
         month_markers.set_clip_on(False)
-        
+
         ax.set_xlim(1,days_in_year)
         ax.set_xticks(middle_day_of_month_doys)
         ax.set_xticklabels(monthabbr.values())
@@ -973,7 +976,7 @@ class MetarPlotter(object):
         ax.set_ylim(0,24)
         ax.set_yticks(np.arange(0,25,3))
         ax.set_yticks(np.arange(0,25),minor=True)
-        
+
         if astro.tz==astro.station_data.get('timezone'):
             if offsetutc:
                 tzoffset = sdf.noon.dt.tz_localize(astro.tz).dt.strftime('%z')
@@ -1001,13 +1004,13 @@ class MetarPlotter(object):
                       bbox_to_anchor=(.5,-.1),
                       loc='upper center',
             )
-    
+
     def plotset_ymwide_tmin_tmax(self,savefig=None):
         fig = plt.figure(figsize=(6.3,2.1))
         width = .80 #.86
         ax = fig.add_axes([.06,.1,width,.8])
         self.plot_ym_cycle_tmin_tmax(ax)
-        
+
         #ax2 = fig.add_axes([width+.02,.01,1-width-.03,.98])
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style_tmax = self.theme.get_ci('patch.tmax')
@@ -1041,11 +1044,11 @@ class MetarPlotter(object):
         width = .79
         ax = fig.add_axes([.06,.1,width,.8])
         self.plot_ym_cycle_wcet(ax)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_ci('patch.wcet')
         limit_styles = self.theme.get_set('patch.limits.wcet')
-        
+
         limit_legend = []
         for f1,ls in limit_styles.items():
             if f1==max(limit_styles.keys()):
@@ -1057,7 +1060,7 @@ class MetarPlotter(object):
                      f'> {f1:.0f}' if f2>299 else (
                      f'{f1:.0f} to {f2:.0f}')))
             limit_legend.append(mpl.patches.Patch(label=label,**ls[0]))
-        
+
         legends = [
             mpl.lines.Line2D([],[],label='Median',**style[0]),
             mplLegendSubheading('Confidence\nintervals:',4),
@@ -1083,11 +1086,11 @@ class MetarPlotter(object):
         width = .80
         ax = fig.add_axes([.05,.1,width,.8])
         self.plot_ym_cycle_wbgt_simplified(ax)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_ci('patch.wbgt')
         limit_styles = self.theme.get_set('patch.limits.wbgt')
-        
+
         limit_legend = []
         ymin, ymax = ax.get_ylim()
         for f1,ls in limit_styles.items():
@@ -1101,7 +1104,7 @@ class MetarPlotter(object):
                      f'{f1:.0f} to {f2:.0f}')))
             if ymin <= f1 < ymax or ymin < f2 <= ymax:
                 limit_legend.append(mpl.patches.Patch(label=label,**ls[0]))
-        
+
         legends = [
             mpl.lines.Line2D([],[],label='Median',**style[0]),
             mplLegendSubheading('Confidence\nintervals:',4),
@@ -1126,7 +1129,7 @@ class MetarPlotter(object):
         width = .81
         ax = fig.add_axes([.05,.1,width,.8])
         self.plot_ym_cycle_relh(ax)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_ci('patch.relh')
         legends = [
@@ -1151,7 +1154,7 @@ class MetarPlotter(object):
         width = .81
         ax = fig.add_axes([.05,.1,width,.8])
         self.plot_ym_cycle_vism(ax)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_ci('patch.vism')
         legends = [
@@ -1176,7 +1179,7 @@ class MetarPlotter(object):
         width = .78
         ax = fig.add_axes([.07,.1,width,.8])
         self.plot_ym_cycle_ceiling(ax)
-        
+
         ax2 = fig.add_axes([width+.06,.1,1-width-.03,.8])
         style = self.theme.get_ci('patch.ceiling')
         legends = [
@@ -1201,7 +1204,7 @@ class MetarPlotter(object):
         width = .74
         ax = fig.add_axes([.05,.1,width,.8])
         self.plot_ym_precipdays(ax)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_set("patch.precipitation_aggr")
         legends = [
@@ -1229,7 +1232,7 @@ class MetarPlotter(object):
         width = .81
         ax = fig.add_axes([.05,.1,width,.8])
         self.plot_ym_cycle_cloud_type(ax,legend=False)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_set('patch.cloud')
         legends = [
@@ -1250,7 +1253,7 @@ class MetarPlotter(object):
         width = .81
         ax = fig.add_axes([.05,.1,width,.8])
         colorcodes = self.plot_ym_cycle_color(ax,legend=False,return_colorcodes=True)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         styles = self.theme.get_set('patch.color')
         legends = [
@@ -1265,17 +1268,17 @@ class MetarPlotter(object):
         ax2.set_axis_off()
         if savefig is not None:
             plt.savefig(savefig)
-            plt.close()  
+            plt.close()
     def plotset_ymwide_solar(self,savefig=None):
         fig = plt.figure(figsize=(6.3,2.1))
         width = .80
         ax = fig.add_axes([.05,.10,width,.85])
         self.plot_ym_solar(ax,legend=False)
-        
+
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_set('patch.solar')
         nooncolor = self.theme.get('solar_noon')[0]['facecolor']
-        
+
         legends = [
             mpl.lines.Line2D([],[],label='Middaguur',color=nooncolor,lw=1.5),
             mpl.patches.Patch(label='Dag',**style['day'][0]),
@@ -1296,7 +1299,7 @@ class MetarPlotter(object):
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
-    
+
     def plotset_monthly_cycle(self,savefig=None):
         fig,axs = plt.subplots(nrows=2,ncols=3)
         self.plot_ym_cycle_tmin_tmax(axs[0][0])
@@ -1325,7 +1328,7 @@ class MetarPlotter(object):
         print("Figuren %s:"%self.station,end=' ',flush=True)
         print("Map",end=' ',flush=True)
         self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
-        
+
         print("Temp",end=' ',flush=True)
         self.plotset_ymwide_tmin_tmax(savefig=os.path.join(dirname_figs,'Y_temp.png') if savefig else None)
         self.plotset_ymwide_wcet(savefig=os.path.join(dirname_figs,'Y_wcet.png') if savefig else None)
@@ -1339,18 +1342,18 @@ class MetarPlotter(object):
         print("Cloud",end=' ',flush=True)
         self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'Y_ceiling.png') if savefig else None)
         self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'Y_cloud_cover.png') if savefig else None)
-        
+
         print("Percip",end=' ',flush=True)
         self.plotset_ymwide_precipdays(savefig=os.path.join(dirname_figs,'Y_precipitation.png') if savefig else None)
         print("Color",end=' ',flush=True)
         self.plotset_ymwide_color(savefig=os.path.join(dirname_figs,'Y_color_state.png') if savefig else None)
-        
-        print("Solar",end=' ',flush=True)        
+
+        print("Solar",end=' ',flush=True)
         self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
-        
+
         print("Klaar")
         print("Afbeeldingen kunnen gevonden worden in %s/"%dirname_figs)
-    
+
     # Non-meteo plots
     def plotset_logo(self,savefig=None):
         if savefig is not None:
@@ -1422,7 +1425,7 @@ class MetarPlotter(object):
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
-    
+
     def test_all_plotsets_to_screen(self,but_not=None):
         plotsets = sorted([name for name in self.__class__.__dict__.keys() if name.startswith('plotset_')])
         but_not = but_not if but_not is not None else []
@@ -1431,14 +1434,14 @@ class MetarPlotter(object):
             if callable(obj) and pfn not in but_not:
                 print(pfn)
                 obj()
-        
-    
+
+
     def generate_monthly_tex(self):
         with open(self.filepaths['tex_head'],'r') as fhh:
             latexhead = fhh.read()
         with open(self.filepaths['tex_month'],'r') as fhm:
             latexmonth = fhm.read()
-        
+
         latexmonths = []
         months = list(self.frange(self.filters['month'],1,12))
         for m in months:
@@ -1457,7 +1460,7 @@ class MetarPlotter(object):
         }]
         latex.append("\n\\newpage\n".join(latexmonths))
         latex.append("\\end{document}")
-        
+
         dirname_texs = os.path.join(self.filepaths['output'],self.station)
         if not os.path.exists(dirname_texs):
             pathlib.Path(dirname_texs).mkdir(parents=True, exist_ok=True)
@@ -1486,9 +1489,9 @@ class MetarPlotter(object):
         print(f'PDF',end=' ',flush=True)
         self.generate_monthly_pdf_from_tex()
         print(f'Klaar.',flush=True)
-            
+
         print('De PDF kan gevonden worden in "%s"'%os.path.join(self.filepaths['output'],self.station,self.station_data['icao'].upper()+"_monthly.pdf"))
-        
+
 class MapPlotHelper(object):
     @classmethod
     def search_files(cls,basepath,name,exts):

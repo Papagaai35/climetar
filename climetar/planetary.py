@@ -1,3 +1,6 @@
+import logging
+_log = logging.getLogger(__name__)
+
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -28,7 +31,7 @@ def solar_calculations(lat_deg,lon_deg,julian2000,time_frac):
     solar['lat'] = fixdeg180(lat_deg)
     solar['lon'] = fixdeg180(lon_deg)
     solar['JD'] = julian2000
-    
+
     solar['N_longitude_ascending_node'] = 0.
     solar['i_inclination_eliptic'] = 0.
     solar['w_argument_perihelion'] = fixdeg360(282.9404 + 4.70935e-5 * julian2000)
@@ -40,18 +43,18 @@ def solar_calculations(lat_deg,lon_deg,julian2000,time_frac):
     solar['q_perihelion_distance'] = solar.a * (1-solar.e)
     solar['Q_aphelion_distance'] = solar.a * (1+solar.e)
     solar['P_orbital_period'] = solar.a ** 1.5
-    
-    solar['E_eccentric_anomaly'] = (solar.M + solar.e*(180/pi) * sin(solar.M) 
+
+    solar['E_eccentric_anomaly'] = (solar.M + solar.e*(180/pi) * sin(solar.M)
         * (1. + solar.e * cos(solar.M)))
     solar['xv'] = cos(solar.E) - solar.e
     solar['yv'] = sqrt(1. - solar.e**2) * sin(solar.E)
     solar['v_true_anomaly'] = arctan2(solar.yv,solar.xv)
     solar['r_distance'] = sqrt(solar.xv**2+solar.yv**2)
-    
+
     solar['lonsun_true_longitude'] = solar.v + solar.w
     solar['xs'] = solar.r * cos(solar.lonsun)
     solar['ys'] = solar.r * sin(solar.lonsun)
-    
+
     earth_ecl_obliquity_ecliptic = 23.4393 - 3.563e-7 * julian2000
     solar['xe'] = solar.xs
     solar['ye'] = solar.ys * cos(earth_ecl_obliquity_ecliptic)
@@ -65,7 +68,7 @@ def solar_calculations(lat_deg,lon_deg,julian2000,time_frac):
     solar['GMST0noon'] = (fixdeg360(solar.Lnoon)/15 + 12)%24
     solar['GMSTnoon'] = (solar.GMST0noon + (time_frac_noon*24))%24
     solar['LSTnoon'] = (solar.GMSTnoon + lon_deg/15)%24
-    
+
     solar['GMST0'] = (fixdeg180(solar.L + 180)/15)%24
     solar['GMST'] = (solar.GMST0 + (time_frac*24))%24
     solar['LST'] = (solar.GMST + lon_deg/15)%24
@@ -79,12 +82,12 @@ def solar_calculations(lat_deg,lon_deg,julian2000,time_frac):
     solar['zhor'] = solar.x * cos(lat_deg) + solar.z * sin(lat_deg)
     solar['az_azimuth'] = arctan2(solar.yhor,solar.xhor)+180
     solar['alt_altitude'] = arctan2(solar.zhor,sqrt(solar.xhor**2+solar.yhor**2))
-    
+
     solar['h_altitude_above_horizon'] = arcsin(sin(lat_deg)*sin(solar.Dec)
         + cos(lat_deg)*cos(solar.Dec)*cos(solar.HA))
     solar['noondeg_UT_sun_in_south_deg'] = fixdeg180(solar.RA-solar.GMST0*15-lon_deg)
     solar['noon_JD_sun_in_south'] = solar.JD//1 + solar.noondeg/360
-    
+
     return solar
 def lunar_calculations(lat_deg,lon_deg,julian2000,time_frac,solar=None):
     if solar is None:
@@ -93,7 +96,7 @@ def lunar_calculations(lat_deg,lon_deg,julian2000,time_frac,solar=None):
     lunar['lat'] = fixdeg180(lat_deg)
     lunar['lon'] = fixdeg180(lon_deg)
     lunar['JD'] = julian2000
-    
+
     lunar['N_longitude_ascending_node'] = fixdeg180(125.1228 - 0.0529538083 * julian2000)
     lunar['i_inclination_eliptic'] = 5.1454
     lunar['w_argument_perihelion'] = fixdeg180(318.0634 + 0.1643573223 * julian2000)
@@ -200,7 +203,7 @@ def lunar_calculations(lat_deg,lon_deg,julian2000,time_frac,solar=None):
     lunar['FV_phase_angle'] = 180 - lunar.elong
     lunar['phase'] = (1+cos(lunar.FV)) / 2
     lunar['magnitude'] = -21.62 + 5 * np.log10(solar.r*lunar.rg) + 0.026 * lunar.FV + 4.0e-9 * lunar.FV**4
-    
+
     lunar['noondeg_UT_moon_in_south_deg'] = fixdeg180(lunar.RA-solar.GMST0*15-lon_deg)
     lunar['noon_JD_moon_in_south'] = lunar.JD//1 + lunar.noondeg/360
 
@@ -222,14 +225,14 @@ def solve_kepler_eq_rad(M,e,max_iterations=20):
 
 class Astro(object):
     solar_twilights = {'astronomical':-18.,'nautical':-12.,'civil':-6.,'sun':-.833,}
-    
+
     def __init__(self,lon=None,lat=None,station=None,unix=None,year=None,tz=None):
         self.lon = lon
         self.lat = lat
         self.tz = tz
         self.unix = unix
         self.station_data = {}
-                          
+
         if station is not None and (self.lon is None or self.lat is None):
             sr = StationRepo()
             s,sd = sr.get_station(station)
@@ -239,15 +242,15 @@ class Astro(object):
         if self.lon is None and self.lat is None:
             raise ValueError()
         self.tz = self.tz if self.tz is not None else 'UTC'
-        
+
         if self.unix is None:
             if year is None:
                 raise ValueError()
             self.unix = self.year_to_unix(year,'H')
         self.year = pd.to_datetime(self.unix,unit='s',origin='unix').strftime('%Y').astype(int).value_counts().idxmax()
-        
+
         #[print(getattr(self,attr)) for attr in 'lon,lat,tz,station_data,year'.split(',')]
-    
+
     @classmethod
     def year_to_unix(cls,year,freq=None,add_time=None):
         start = pd.to_datetime(f'{year:04d}-001',format='%Y-%j')
@@ -259,29 +262,29 @@ class Astro(object):
                 add_time = pd.Timedelta(add_time,freq)
             dates = dates + add_time
         return cls.pdtimestamp_to_unix(dates)
-    
+
     @classmethod
     def unix_to_julian(cls,unix_ts):
         julian_day = unix_ts/86400.0 + 2440587.5
         julian2000 = julian_day - 2451543.5 #0:00 0Jan2000 = 31Dec1999
         time_frac = unix_ts/86400%1
         return julian2000,time_frac
-    
+
     @classmethod
     def pdtimestamp_to_unix(cls,pd_timestamps):
         return ((pd_timestamps - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')).values
-    
+
     @classmethod
     def pdtimestamp_to_julian(cls,pd_timestamps):
         return cls.unix_to_julian(cls.pdtimestamp_to_unix(pd_timestamps))
-    
+
     @classmethod
     def julian_to_pdtimestamp(cls,julian2000,precision_s=1):
         julian2000s = np.round((julian2000+10956)*86400*precision_s)/precision_s
         dates = pd.to_datetime(julian2000s,unit='s',origin='unix') #unix_to_julian(0)=-10956
         dates = dates.to_series() if 'index' in str(type(dates)) else dates
         return dates.astype('datetime64[s]')
-    
+
     @classmethod
     def convert_tz(cls,series,to_tz,from_tz=None):
         if series.dt.tz is None:
@@ -298,7 +301,7 @@ class Astro(object):
         JDmin, JDmax = self.pdtimestamp_to_julian(dates.to_series().iloc[[0,-1]])[0]
         sds = solar_calculations(self.lat, self.lon, julian2000, time_frac)
         sdf = {'date': self.julian_to_pdtimestamp(sds.JD,opt_diffmax_s).values}
-        
+
         for twilight, angle in self.solar_twilights.items():
             sds_dawn = sds.copy()
             iter_dawn = 0
@@ -310,13 +313,13 @@ class Astro(object):
                 #UTdawn_new = np.where(UTdawn_new>24.,np.nan,UTdawn_new)
                 #UTdawn_new = np.where(UTdawn_new<0.,np.nan,UTdawn_new)
                 #JDdawn_new = julian2000//1 + UTdawn_new/24.0
-                
+
                 UTdawn_new = (sds_dawn.noondeg - LHA)
                 TFdawn_new = UTdawn_new/15.04107/24.0
                 JDdawn_new = (julian2000//1) + (TFdawn_new)
                 JDdawn_new = np.where(JDdawn_new>julian2000+.5,JDdawn_new-1,JDdawn_new)
                 JDdawn_new = np.where(JDdawn_new<julian2000-.5,JDdawn_new+1,JDdawn_new)
-            
+
                 if iter_dawn>1 and np.nanmax(np.abs(JDdawn_new-JDdawn_old))<opt_diffmax:
                     break
                 if iter_dawn>opt_itermax:
@@ -327,7 +330,7 @@ class Astro(object):
             sds['%sdawn_%s'%(twilight[0],twilight)] = JDdawn_new
             name = 'sunrise' if twilight=='sun' else f'{twilight}_dawn'
             sdf[name] = self.julian_to_pdtimestamp(JDdawn_new,opt_diffmax_s).values
-        sdf['noon'] = self.julian_to_pdtimestamp(sds.noon,opt_diffmax_s).values  
+        sdf['noon'] = self.julian_to_pdtimestamp(sds.noon,opt_diffmax_s).values
         for twilight, angle in reversed(list(self.solar_twilights.items())):
             sds_dusk = sds.copy()
             iter_dusk = 0
@@ -339,13 +342,13 @@ class Astro(object):
                 #UTdusk_new = np.where(UTdusk_new>24.,np.nan,UTdusk_new)
                 #UTdusk_new = np.where(UTdusk_new<0.,np.nan,UTdusk_new)
                 #JDdusk_new = julian2000//1 + UTdusk_new/24.0
-                
+
                 UTdusk_new = (sds_dusk.noondeg + LHA)
                 TFdusk_new = UTdusk_new/15.04107/24.0
                 JDdusk_new = (julian2000//1) + TFdusk_new
                 JDdusk_new = np.where(JDdusk_new>julian2000+.5,JDdusk_new-1,JDdusk_new)
                 JDdusk_new = np.where(JDdusk_new<julian2000-.5,JDdusk_new+1,JDdusk_new)
-            
+
                 if iter_dusk>1 and np.nanmax(np.abs(JDdusk_new-JDdusk_old))<opt_diffmax:
                     break
                 if iter_dusk>opt_itermax:
@@ -357,13 +360,13 @@ class Astro(object):
             name = 'sunset' if twilight=='sun' else f'{twilight}_dusk'
             sdf[name] = self.julian_to_pdtimestamp(JDdusk_new,opt_diffmax_s).values
         return pd.DataFrame(sdf), sds
-    
+
     def solar_dawndusk(self):
         sdf, sds = self.solar_calculate_dawndusk()
-        
+
         for col in sdf.columns:
             sdf[col] = self.convert_tz(sdf[col],self.tz)
-    
+
         idxs = []
         for date in sdf.date.dt.strftime('%Y-%m-%d').unique():
             date = pd.to_datetime(date,format='%Y-%m-%d')
@@ -375,7 +378,7 @@ class Astro(object):
             #df.loc[~df[col].between(df.date.min(),df.date.max()),col] = np.nan
             pass
         return df.iloc[:-1,:], sds
-    
+
     def solar_matrix(self):
         sdf, sds = self.solar_dawndusk()
         div = pd.date_range(sdf.date.min(),sdf.date.min()+pd.Timedelta('1 day'),freq='min')[:-1].shape[0]
@@ -390,7 +393,7 @@ class Astro(object):
             np.array([-np.inf]+list(self.solar_twilights.values())+[np.inf])
         )-1
         udall = np.full(target_shape,start_val)
-        
+
         for p, twilight in enumerate(self.solar_twilights.keys()):
             dawn = sdf['sunrise' if twilight=='sun' else f'{twilight}_dawn'].values[None,:]
             dusk = sdf['sunset' if twilight=='sun' else f'{twilight}_dusk'].values[None,:]
@@ -400,7 +403,7 @@ class Astro(object):
             updown = (after_dawn-after_dusk).reshape(*target_shape)
             udall += updown
         return  udall, sdf, sds
-    
+
     def lunar_calculate_dawndusk(self,opt_itermax=100,opt_diffmax_s=1):
         opt_diffmax = opt_diffmax_s/86400
         dates = pd.date_range(pd.Timestamp(min(self.unix),unit='s'),pd.Timestamp(max(self.unix)+1,unit='s'),freq='H')
@@ -408,7 +411,7 @@ class Astro(object):
         JDmin, JDmax = self.pdtimestamp_to_julian(dates.to_series().iloc[[0,-1]])[0]
         lds = lunar_calculations(self.lat, self.lon, julian2000, time_frac)
         ldf = {'date': self.julian_to_pdtimestamp(lds.JD,opt_diffmax_s).values}
-        
+
         lds_dawn = lds.copy()
         iter_dawn = 0
         UTdawn_old, JDdawn_old = np.zeros(julian2000.shape), np.zeros(julian2000.shape)
@@ -421,7 +424,7 @@ class Astro(object):
             JDdawn_new = (julian2000//1) + (TFdawn_new)
             JDdawn_new = np.where(JDdawn_new>julian2000+.5,JDdawn_new-1,JDdawn_new)
             JDdawn_new = np.where(JDdawn_new<julian2000-.5,JDdawn_new+1,JDdawn_new)
-            
+
             if iter_dawn>1 and np.nanmax(np.abs(JDdawn_new-JDdawn_old))<opt_diffmax:
                 break
             if iter_dawn>opt_itermax:
@@ -430,12 +433,12 @@ class Astro(object):
                 break
             UTdawn_old, JDdawn_old = UTdawn_new, JDdawn_new
             lds_dawn = lunar_calculations(self.lat,self.lon,JDdawn_new,TFdawn_new)
-            
+
         lds['dawn'] = JDdawn_new
         ldf['moonrise'] = self.julian_to_pdtimestamp(JDdawn_new,opt_diffmax_s).values
-        
+
         ldf['noon'] = self.julian_to_pdtimestamp(lds.noon,opt_diffmax_s).values
-        
+
         lds_dusk = lds.copy()
         iter_dusk = 0
         UTdusk_old, JDdusk_old = np.zeros(julian2000.shape), np.zeros(julian2000.shape)
@@ -448,7 +451,7 @@ class Astro(object):
             JDdusk_new = (julian2000//1) + TFdusk_new
             JDdusk_new = np.where(JDdusk_new>julian2000+.5,JDdusk_new-1,JDdusk_new)
             JDdusk_new = np.where(JDdusk_new<julian2000-.5,JDdusk_new+1,JDdusk_new)
-            
+
             if iter_dusk>1 and np.nanmax(np.abs(JDdusk_new-JDdusk_old))<opt_diffmax:
                 break
             if iter_dusk>opt_itermax:
@@ -459,15 +462,15 @@ class Astro(object):
             lds_dusk = lunar_calculations(self.lat,self.lon,JDdusk_new,TFdusk_new)
         lds['dusk'] = JDdusk_new
         ldf['moonset'] = self.julian_to_pdtimestamp(JDdusk_new,opt_diffmax_s).values
-        
+
         return pd.DataFrame(ldf), lds
-    
+
     def lunar_dawndusk(self,window_h=3):
         ldf, lds = self.lunar_calculate_dawndusk()
-        
+
         for col in ldf.columns:
             ldf[col] = self.convert_tz(ldf[col],self.tz)
-        
+
         series = {}
         for col in ['moonrise','noon','moonset']:
             idxs = []
@@ -493,7 +496,7 @@ class Astro(object):
         for col in ['moonrise','noon','moonset']:
             df.loc[~df[col].between(df.date.min(),df.date.max()),col] = np.nan
         return df.loc[:,['date','moonrise','noon','moonset']], lds
-    
+
     def lunar_matrix(self):
         ldf, lds = self.lunar_dawndusk()
         div = pd.date_range(ldf.date.min(),ldf.date.min()+pd.Timedelta('1 day'),freq='min')[:-1].shape[0]
@@ -506,23 +509,23 @@ class Astro(object):
             ))
         start_val = (start_data.RA>-(start_data.mpar+start_data.d)).astype(float)
         udall = np.full(target_shape,start_val)
-        
+
         dawn = ldf['moonrise'].dropna().values[None,:]
         dusk = ldf['moonset'].dropna().values[None,:]
         after_dawn = np.sum(dates>dawn,axis=1)
         after_dusk = np.sum(dates>dusk,axis=1)
         updown = (after_dawn-after_dusk)
-        
+
         updownmx = updown.reshape(*target_shape)
         udall += updownmx
         return udall, ldf, lds
     def lunar_phase_matrix(self):
         lmx, ldf, lds = self.lunar_matrix()
-        
+
         div = pd.date_range(ldf.date.min(),ldf.date.min()+pd.Timedelta('1 day'),freq='min')[:-1].shape[0]
         dates = pd.date_range(ldf.date.min(),ldf.date.max(),freq='min')[:-1].values[:,None]
         target_shape = dates.shape[0]//div,div
-        
+
         phase = np.roll(np.repeat(lds.phase[:-1],div//24),div//48)
         phase[0:1+div//48] = phase[1+div//48]
         phasemx = phase.reshape(*target_shape)
@@ -536,7 +539,7 @@ class PlannetaryDataset(object):
         if d is not None:
             self._dict = dict(d)
             self.regenerate_abbr()
-            
+
     def regenerate_abbr(self):
         self._abbr = {k.split("_",2)[0]:k for k in self._dict.keys()}
 
@@ -551,7 +554,7 @@ class PlannetaryDataset(object):
 
     def __getitem__(self, key):
         return self._dict[key]
-    
+
     def __getattr__(self,name):
         if name in self._abbr:
             return self._dict[self._abbr[name]]
@@ -576,7 +579,7 @@ class PlannetaryDataset(object):
 
     def to_dict(self):
         return self._dict.copy()
-    
+
     def copy(self):
         return self.__class__(self._dict.copy())
 
@@ -601,7 +604,7 @@ class PlannetaryDataset(object):
         r = self._dict.pop(*args)
         self.regenerate_abbr()
         return r
-    
+
     def to_frame(self):
         shape = None
         data = {}
@@ -619,7 +622,7 @@ class PlannetaryDataset(object):
                 data[k] = v
         datadict = {k:(v if hasattr(v,'shape') else np.full(shape,v)) for k,v in data.items()}
         return pd.DataFrame(datadict)
-    
+
     def __cmp__(self, dict_):
         return self.__cmp__(self._dict, dict_)
 
@@ -631,5 +634,3 @@ class PlannetaryDataset(object):
 
     def __unicode__(self):
         return unicode(repr(self._dict))
-
-    

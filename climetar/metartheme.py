@@ -1,3 +1,6 @@
+import logging
+_log = logging.getLogger(__name__)
+
 import json
 import os
 
@@ -31,7 +34,7 @@ class MetarTheme(object):
         assert("edgecolor" in self.theme)
         assert("edgealpha" in self.theme)
         assert("linewidth" in self.theme)
-    
+
     @classmethod
     def argsplit(cls,args):
         return list((".".join(args)).split("."))
@@ -67,7 +70,7 @@ class MetarTheme(object):
                 if skiped_arg>1:
                     break
                 skiped_arg += 1
-        
+
         if isinstance(result,dict) and 'default' in result:
             return result['default']
         return result
@@ -123,10 +126,10 @@ class MetarTheme(object):
         lw = self.themeget('linewidth',*args)
         lw = 0. if (ec[0]=='#' and ec[-2:]=='00') or ec=='none' else lw
         ty = self.get_type(*args)
-        
+
         if all(self.is_digit(k) for k in cs.keys()):
             cs = dict(sorted({int(k):v for k,v in cs.items()}.items(),key=lambda i: i[0]))
-        
+
         result = {}
         for k,c in cs.items():
             if isinstance(k,str) and '__' in k:

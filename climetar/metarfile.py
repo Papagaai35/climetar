@@ -1,3 +1,6 @@
+import logging
+_log = logging.getLogger(__name__)
+
 import csv
 import datetime
 import glob
@@ -40,16 +43,16 @@ def analyse_glob(glob_pattern,rerun_parsed=False,output_folder=None):
         filedir, filename = os.path.split(filepath)
         #print(filepath)
         filebase, fileext = os.path.splitext(str(filename))
-        
+
         if 'analysed' in filebase and not rerun_parsed:
             continue
         if not os.path.isfile(filepath) or not os.access(filepath,os.R_OK):
             continue
-        
+
         mfs = MetarFiles(datastore=output_folder)
         if mfs.import_raw(filepath):
             analysed.append(filepath)
-                   
+
             new_filename = filebase if 'analysed' in filebase else filebase+'.analysed'
             new_filename += fileext if fileext!='' else '.csv'
             new_filepath = os.path.join(filedir,new_filename)
@@ -60,12 +63,12 @@ def analyse_glob(glob_pattern,rerun_parsed=False,output_folder=None):
 
 class MetarFiles(object):
     default_datastore = './data'
-                      
+
     def __init__(self,datastore=None):
         self.datastore = datastore if datastore is not None else self.default_datastore
         self.exported_files = set()
         self.repo = StationRepo()
-                      
+
     def _index_init(self):
         for filepath in glob.iglob(os.path.join(self.datastore,'*','*.metar')):
             if not os.path.isfile(filepath):
@@ -80,7 +83,7 @@ class MetarFiles(object):
                     self.index[station] = {}
                 if timespan.isnumeric() and len(timespan)==4:
                     period_from, period_to = (timespan+'-01-01',timespan+'-12-31')
-                    period_from, period_to = datetime.datetime.strptime(timespan+'-01-01',' %Y-%m-%d'), datetime.datetime.strptime(timespan+'-12-31',' %Y-%m-%d') 
+                    period_from, period_to = datetime.datetime.strptime(timespan+'-01-01',' %Y-%m-%d'), datetime.datetime.strptime(timespan+'-12-31',' %Y-%m-%d')
                     self.index[station][int(timespan)] = period_from, period_to
                 elif 'doy' in timespan:
                     # Partial 2011.doy001-356.metar
@@ -92,7 +95,7 @@ class MetarFiles(object):
                         self.index[station][year] = min([period_from,self.index[station][year][0]]), max([period_to,self.index[station][year][1]])
                     else:
                         self.index[station][year] = period_from, period_to
-    
+
     def import_chunck(self,indf,chuncknr=0):
         metar_parsed = []
         for index, row in indf.iterrows():
@@ -109,7 +112,7 @@ class MetarFiles(object):
                 metar_parsed.append(mo.to_dict())
             except Exception as exc:
                 raise ValueError('Kon metar-bericht niet verwerken (blok %d, regel %d):\n%s' % (chuncknr,index,row['metar'])) from exc
-        
+
         df = pd.DataFrame(metar_parsed)
         df['calc_color'] = metar.Metar.calc_color(df.vis,df.sky_ceiling)
         df['relh'] = metar.Metar.calc_relh(df.temp,df.dwpt)
@@ -187,7 +190,7 @@ class MetarFiles(object):
                 c+=1
         print("\n")
         return True
-        
+
 def format_period(secs,si=False,precision=2):
     def split(value,precision):
         negative = False
@@ -215,7 +218,7 @@ def format_period(secs,si=False,precision=2):
         if abs(si_level) > prefix_levels:
             return "e%d"%expof10
         return SI_PREFIX_UNTIS[si_level+prefix_levels]
-    
+
     if secs<60. or si:
         svalue, expof10 = split(secs,precision)
         prefix = prefix(expof10).strip()
@@ -224,7 +227,7 @@ def format_period(secs,si=False,precision=2):
     else:
         steps = {"sec":1,"min":60,"h":3600,"days":86400,"years":31557600}
         for i,(n,d) in enumerate(steps.items()):
-            
+
             pn = list(steps.keys())[max(0,i-1)]
             nn = list(steps.keys())[min(i+1,len(steps)-1)]
             pd, nd = steps[pn], steps[nn]
