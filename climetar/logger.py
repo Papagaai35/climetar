@@ -72,22 +72,24 @@ class LevelFilter(logging.Filter):
         return False
 
 class LogFileFormatter(logging.Formatter):
-    def __init__(self,fmt=None,datefmt=None,style='%',validate=True,indent=4,**kwargs):
-        if fmt is None:
-            fmt = '%(levelname)-9s %(asctime)s %(name)-20s %(pathname)s:%(lineno)d %(funcName)s\n%(message)s'
-            style = '%'
-        logging.Formatter.__init__(self, fmt, datefmt, style, validate, **kwargs)
+    def __init__(self,fmt=None,datefmt=None,style='%',indent=4,**kwargs):
+        kwargs.update(dict(fmt=fmt,datefmt=datefmt,style=style))
+        if kwargs['fmt'] is None:
+            kwargs['fmt'] = '%(levelname)-9s %(asctime)s %(name)-20s %(pathname)s:%(lineno)d %(funcName)s\n%(message)s'
+            kwargs['style'] = '%'
+        logging.Formatter.__init__(self, **kwargs)
         self.indent = indent
     def format(self,record):
         msg = super().format(record)
         msg = "\n".join([(m if i==0 else self.indent*" "+m) for i,m in enumerate(msg.split("\n"))])
         return msg
 class LogViewFormatter(logging.Formatter):
-    def __init__(self,fmt=None,datefmt=None,style='%',validate=True,indent=4,append=None,**kwargs):
-        if fmt is None:
-            fmt = '[%(levelname)s] %(message)s'
-            style = '%'
-        logging.Formatter.__init__(self, fmt, datefmt, style, validate, **kwargs)
+    def __init__(self,fmt=None,datefmt=None,style='%',indent=4,append=None,**kwargs):
+        kwargs.update(dict(fmt=fmt,datefmt=datefmt,style=style))
+        if kwargs['fmt'] is None:
+            kwargs['fmt'] = '[%(levelname)s] %(message)s'
+            kwargs['style'] = '%'
+        logging.Formatter.__init__(self, **kwargs)
         self.indent = indent
         self.append = {} if append is None else append
     def format(self,record):
