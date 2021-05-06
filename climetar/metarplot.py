@@ -140,8 +140,8 @@ class MetarPlotter(object):
         return gte,lte,eq
     def filter_year(self,gte=None,lte=None,eq=None):
         self.filters['year'] = self.filter_series(self.pdf.time.dt.year,gte,lte,eq)
-        _log.debug(f"Filtering data on year (<={lte},>={gte},=={eq})")
-    def filter_month(self,gte=None,lte=None,eq=None):,
+        _log.debug("Filtering data on year (<={},>={},=={})")
+    def filter_month(self,gte=None,lte=None,eq=None):
         self.filters['month'] = self.filter_series(self.pdf.time.dt.month,gte,lte,eq)
         _log.debug(f"Filtering data on month (<={lte},>={gte},=={eq})")
     def filter_day(self,gte=None,lte=None,eq=None):
