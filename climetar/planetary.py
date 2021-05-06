@@ -218,9 +218,8 @@ def solve_kepler_eq_rad(M,e,max_iterations=20):
         E1 = E0 - (E0 - e * np.sin(E0) - M) / (1 - e*np.cos(E0))
         iterations += 1
         if iterations > max_iterations:
-            print(np.abs(E0-E1).max())
             diff = np.abs(E0-E1).max()
-            raise ValueError(f'Did not converge in {iterations:d} iterations')
+            raise ValueError(f'De Kepler-vergelijking voor de Zon- & Maanstanden kwam niet samen in {iterations:d} iteraties')
     return E1
 
 class Astro(object):
@@ -240,16 +239,16 @@ class Astro(object):
             self.lon, self.lat = sd['latitude'], sd['longitude']
             self.tz = tz if tz is not None else sd['timezone']
         if self.lon is None and self.lat is None:
-            raise ValueError()
+            raise ValueError('Voor deze locatie zijn geen longitude en latitude bekend...')
         self.tz = self.tz if self.tz is not None else 'UTC'
 
         if self.unix is None:
             if year is None:
-                raise ValueError()
+                raise ValueError('Er is geen tijdstip/jaar bekend waarover de Zon- & Maanstanden berekend moet worden...')
             self.unix = self.year_to_unix(year,'H')
         self.year = pd.to_datetime(self.unix,unit='s',origin='unix').strftime('%Y').astype(int).value_counts().idxmax()
 
-        #[print(getattr(self,attr)) for attr in 'lon,lat,tz,station_data,year'.split(',')]
+        _log.debug("Loaded Astro for %f,%f in year %d"%(self.lat,self.lon,self.year))
 
     @classmethod
     def year_to_unix(cls,year,freq=None,add_time=None):
@@ -292,6 +291,7 @@ class Astro(object):
             series = series.dt.tz_localize(from_tz)
         return series.dt.tz_convert(to_tz).dt.tz_localize(None)
     def solar_calculate_dawndusk(self,opt_itermax=10,opt_diffmax_s=1):
+        _log.debug("Calculating solar_dawndusk")
         opt_diffmax = opt_diffmax_s/86400
         dates = pd.date_range(
             pd.Timestamp(min(self.unix),unit='s'),
@@ -380,6 +380,7 @@ class Astro(object):
         return df.iloc[:-1,:], sds
 
     def solar_matrix(self):
+        _log.debug("Calculating solar_dawndusk matrix")
         sdf, sds = self.solar_dawndusk()
         div = pd.date_range(sdf.date.min(),sdf.date.min()+pd.Timedelta('1 day'),freq='min')[:-1].shape[0]
         dates = pd.date_range(sdf.date.min(),sdf.date.max(),freq='min')[:-1].values[:,None]
@@ -405,6 +406,7 @@ class Astro(object):
         return  udall, sdf, sds
 
     def lunar_calculate_dawndusk(self,opt_itermax=100,opt_diffmax_s=1):
+        _log.debug("Calculating lunar_dawndusk")
         opt_diffmax = opt_diffmax_s/86400
         dates = pd.date_range(pd.Timestamp(min(self.unix),unit='s'),pd.Timestamp(max(self.unix)+1,unit='s'),freq='H')
         julian2000, time_frac = self.pdtimestamp_to_julian(dates)
@@ -520,6 +522,7 @@ class Astro(object):
         udall += updownmx
         return udall, ldf, lds
     def lunar_phase_matrix(self):
+        _log.debug("Calculating lunar_dawndusk phase-matrix")
         lmx, ldf, lds = self.lunar_matrix()
 
         div = pd.date_range(ldf.date.min(),ldf.date.min()+pd.Timedelta('1 day'),freq='min')[:-1].shape[0]
@@ -613,8 +616,7 @@ class PlannetaryDataset(object):
                 if shape is None:
                     shape = v.shape
                 elif v.shape != shape:
-                    print(k,v.shape,shape)
-                    raise ValueError(f'{k} has another shape than other vars in this dataset')
+                    raise ValueError('%s has another shape (%s) than other vars in this dataset (%s)'%(k,str(v.shape),str(shape)))
                 data[k] = v
             elif hasattr(v,'shape') and len(v.shape)==0:
                 data[k] = np.atleast_1d(v)[0]
