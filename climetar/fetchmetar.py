@@ -7,9 +7,9 @@ import os
 import pathlib
 import string
 import socket
+import time
 import urllib
 
-from IPython.core.display import display, HTML
 import pandas as pd
 
 
@@ -24,6 +24,11 @@ class MetarFetcher(object):
         self.unknown_stations = None
         self.start = self.clean_input_date(start)
         self.end = self.clean_input_date(end)
+        _log.debug("Loaded MetarFetcher for %s [%s to %s]"%(
+            ",".join(self.stations),
+            self.start.strftime('%Y-%m-%d'),
+            self.end.strftime('%Y-%m-%d'),
+        ))
 
     @classmethod
     def clean_input_date(cls,date_obj):
@@ -58,6 +63,7 @@ class MetarFetcher(object):
         for s in self.stations:
             if s not in self.repo['stations']:
                 self.unknown_stations.append(s)
+        _log.debug("Stations not found: %s"%(",".join(self.unknown_stations)))
         return len(self.unknown_stations)==0
 
     def show_alternatives(self,num=10):
@@ -94,7 +100,7 @@ class MetarFetcher(object):
     def download(self,filename=None,overwrite=False,**kwargs):
         if not self.all_stations_exsist():
             errormsg = (
-                "Stations niet gevonden.".format(self.unknown_stations[0])
+                "Stations niet gevonden."
                 if len(self.unknown_stations)<1 else (
                 "Station niet gevonden: {}.".format(self.unknown_stations[0])
                 if len(self.unknown_stations)==1 else
@@ -126,16 +132,18 @@ class MetarFetcher(object):
         uri = 'https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?' + urlp
 
         if self.is_connected(uri):
-            filename, filemode = path_check(filename,overwrite)
+            filename, filemode = self.path_check(filename,overwrite)
             with open(filename, filemode) as fh:
-                data = download_data_from_uri(uri)
+                data = self.download_data_from_uri(uri)
                 fh.write(data)
-            display(HTML(f'Bestand gedownload naar <code>{filename}</code>'))
+            _log.info(f'Bestand gedownload naar {filename}')
         else:
-            display(HTML(f'''
-Geen internetverbining gedetecteerd.<br />
-Waarschijnlijk maak je gebruik van een netwerk zonder internet, zoals MULAN. In dat geval kun je gebruik maken van <a href="https://iodwwerkplek.mindef.nl/">Internet op de Werkplek</a><br /><br />
-Download het bestand van de volgende website, en sla deze op in de map "downloads". De download kan enkele minuten duren.<br /><a href="{uri}">{uri}</a>'''))
+            _log.info('Geen internetverbining gedetecteerd.\n'
+                f'Waarschijnlijk maak je gebruik van een netwerk zonder internet, zoals MULAN.'
+                f'In dat geval kun je gebruik maken van Internet op de Werkplek (https://iodwwerkplek.mindef.nl/)\n\n'
+                f'Download het bestand van de volgende website, en sla deze op in de map "downloads". '
+                f'De download kan enkele minuten duren.\n'
+                f'{uri}')
 
     @classmethod
     def path_check(cls,filename=None,overwrite=False):
@@ -148,7 +156,7 @@ Download het bestand van de volgende website, en sla deze op in de map "download
         fields = [t[1] for t in string.Formatter().parse(filename) if t[1] is not None]
         if 'i' in fields:
             i=0
-            if not overwite:
+            if not overwrite:
                 while os.path.isfile(filename.format(i=i)):
                     i += 1
                 filename = filename.format(i=i)
@@ -175,6 +183,7 @@ Download het bestand van de volgende website, en sla deze op in de map "download
                 if data is not None and not data.startswith("ERROR"):
                     return data
             except Exception as exp:
+                _log.debug(f"Download failed {attempt:d}/5: {uri}")
                 time.sleep(5)
             attempt += 1
         raise ValueError("Download is verschillende keren mislukt.")
