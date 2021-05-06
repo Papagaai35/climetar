@@ -26,13 +26,13 @@ def analyse_globs(glob_patterns,rerun_parsed=False,output_folder=None):
         analysed += gpa
         output_files += gpo
     if len(analysed)==0 and not rerun_parsed:
-        print('Er waren geen (nieuwe) bestanden aangetroffen, om te analyseren...')
+        _log.warning('Er waren geen (nieuwe) bestanden aangetroffen, om te analyseren...')
     elif len(analysed)==0 and rerun_parsed:
-        print('Er waren geen bestanden aangetroffen, om te analyseren...')
+        _log.warning('Er waren geen bestanden aangetroffen, om te analyseren...')
     elif len(output_files)==1:
-        print('Geanalyseerde metarberichten zijn opgeslagen in "%s"'%output_files[0])
+        _log.info('Geanalyseerde metarberichten zijn opgeslagen in "%s"'%output_files[0])
     elif len(output_files)>1:
-        print('Geanalyseerde metarberichten zijn opgeslagen in "%s" en "%s"'%(
+        _log.info('Geanalyseerde metarberichten zijn opgeslagen in "%s" en "%s"'%(
             '", "'.join(output_files[:-1]),output_files[-1]))
     return analysed, output_files
 
@@ -41,7 +41,6 @@ def analyse_glob(glob_pattern,rerun_parsed=False,output_folder=None):
     output_files = set()
     for filepath in glob.iglob(glob_pattern):
         filedir, filename = os.path.split(filepath)
-        #print(filepath)
         filebase, fileext = os.path.splitext(str(filename))
 
         if 'analysed' in filebase and not rerun_parsed:
@@ -141,13 +140,13 @@ class MetarFiles(object):
         num_lines = sum(1 for line in open(filepath))
         df_kwargs = {'usecols':['station','valid','metar'],'dtype':str,'parse_dates':['valid'],'dayfirst':True}
         if chunk is None:
-            print('Analyseren van %s, in een keer'%(filepath))
+            _log.info('Analyseren van %s, in een keer'%(filepath))
             df = pd.read_csv(filename,**df_kwargs)
             self.import_chunck(chunk_df,1)
         elif versiontuple(pd.__version__) >= versiontuple('1.2.0'):
             numchunks = num_lines//chunk+1
             times = []
-            print('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,numchunks,chunk))
+            _log.info('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,numchunks,chunk))
             with pd.read_csv(filepath,chunksize=chunk,**df_kwargs) as reader:
                 c=1
                 print('Blok 1/%d wordt geanalyseerd. ETA %s'%(numchunks,format_period(num_lines/1e3)),end='\r',flush=True)
@@ -164,12 +163,14 @@ class MetarFiles(object):
                         msg += ' ETA %s.'%format_period(totduration)
                     else:
                         msg += ' Klaar.'
+                    _log.debug(msg)
                     print(msg+(' '*40),end='\r',flush=True)
                     c+=1
+                print("\n")
         else:
             numchunks = num_lines//chunk+1
             times = []
-            print('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,chunk))
+            _log.info('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,chunk))
             tfr = pd.read_csv(filepath,chunksize=chunk,**df_kwargs)
             c=1
             print('Blok 1/%d wordt geanalyseerd. ETA %s'%(numchunks,format_period(num_lines/1e3)),end='\r',flush=True)
@@ -186,9 +187,10 @@ class MetarFiles(object):
                     msg += ' ETA %s.'%format_period(totduration)
                 else:
                     msg += ' Klaar.'
+                _log.debug(msg)
                 print(msg+(' '*40),end='\r',flush=True)
                 c+=1
-        print("\n")
+            print("\n")
         return True
 
 def format_period(secs,si=False,precision=2):
