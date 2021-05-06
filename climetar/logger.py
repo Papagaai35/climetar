@@ -16,6 +16,31 @@ def getLogger(name):
         sys.excepthook = getExceptionHandler(logger)
     return logger
 
+def getLogFileHandler(filename='climetar.log'):
+    maxBytes = 15*(1024**2) #15 MiB
+    fhand = logging.handlers.RotatingFileHandler(filename,'a',maxBytes=maxBytes,backupCount=2)
+    fhand.setLevel(logging.DEBUG)
+    fhand.addFilter(TracebackInfoFilter(clear=False))
+    fhand.setFormatter(LogFileFormatter())
+    return fhand
+
+def getStdOutHandler(stream=sys.stdout):
+    shand = logging.StreamHandler(stream=stream)
+    shand.setLevel(logging.INFO)
+    shand.addFilter(LevelFilter(0,35)) # Only upto Warnings (inclusive)
+    shand.addFilter(TracebackInfoFilter(clear=True))
+    sfmtr = logging.Formatter('[Waarschuwing] %(message)s')
+    shand.setFormatter(sfmtr)
+    return shand
+
+def getStdErrHandler(stream=sys.stderr):
+    shand = logging.StreamHandler(stream=stream)
+    shand.setLevel(logging.ERROR)
+    shand.addFilter(TracebackInfoFilter(clear=True))
+    sfmtr = logging.Formatter('[Fout] %(message)s\nZie climetar.log voor meer info...')
+    shand.setFormatter(sfmtr)
+    return shand
+
 class TracebackInfoFilter(logging.Filter):
     def __init__(self, clear=True):
         self.clear = clear
@@ -27,6 +52,7 @@ class TracebackInfoFilter(logging.Filter):
             record.exc_info = record._exc_info_hidden
             del record._exc_info_hidden
         return True
+
 class LevelFilter(logging.Filter):
     def __init__(self, low, high):
         self._low = low
@@ -38,6 +64,7 @@ class LevelFilter(logging.Filter):
         return False
 
 class LogFileFormatter(logging.Formatter):
+    # Indents the traceback at logging
     def __init__(self,indent=4):
         fmt = '%(levelname)-8s %(asctime)s %(name)-20s %(pathname)s:%(lineno)d %(funcName)s\n%(message)s'
         self.indent = indent
@@ -48,6 +75,7 @@ class LogFileFormatter(logging.Formatter):
         return "\n".join(msgi)
 
 def getNewLogRecordFactory():
+    #Makes sure that exceptions gets logged at their raise command, instead of this file.
     oldFactory = logging.getLogRecordFactory()
     def newLogRecordFactory(name,level,fn,lno,msg,args,exc_info,func=None,sinfo=None,**kwargs):
         if exc_info is not None and len(exc_info)>2 and level>=logging.CRITICAL:
@@ -58,30 +86,8 @@ def getNewLogRecordFactory():
         return oldFactory(name,level,fn,lno,msg,args,exc_info,func,sinfo,**kwargs)
     return newLogRecordFactory
 
-def getLogFileHandler(filename='climetar.log'):
-    maxBytes = 15*(1024**2) #15 MiB
-    fhand = logging.handlers.RotatingFileHandler(filename,'a',maxBytes=maxBytes,backupCount=2)
-    fhand.setLevel(logging.INFO)
-    fhand.addFilter(TracebackInfoFilter(clear=False))
-    fhand.setFormatter(LogFileFormatter())
-    return fhand
-def getStdOutHandler(stream=sys.stdout):
-    shand = logging.StreamHandler(stream=stream)
-    shand.setLevel(logging.WARNING)
-    shand.addFilter(LevelFilter(25,35))
-    shand.addFilter(TracebackInfoFilter(clear=True))
-    sfmtr = logging.Formatter('[Waarschuwing] %(message)s')
-    shand.setFormatter(sfmtr)
-    return shand
-def getStdErrHandler(stream=sys.stderr):
-    shand = logging.StreamHandler(stream=stream)
-    shand.setLevel(logging.ERROR)
-    shand.addFilter(TracebackInfoFilter(clear=True))
-    sfmtr = logging.Formatter('[Fout] %(message)s\nZie climetar.log voor meer info...')
-    shand.setFormatter(sfmtr)
-    return shand
-
 def getExceptionHandler(logger):
+    # Exceptions to logging handler
     def handle_exception(exc_type,exc_value,exc_traceback):
         if issubclass(exc_type,KeyboardInterrupt):
             logger.error('Interrupted by user',exc_info=(exc_type, exc_value, exc_traceback))
@@ -89,7 +95,9 @@ def getExceptionHandler(logger):
         else:
             logger.critical(('%s: %s'%(exc_type.__name__,exc_value)),exc_info=(exc_type, exc_value, exc_traceback))
     return handle_exception
+
 def getIpythonExceptionHandler(logger):
+    # Ipython/jupyter exceptions to logging handler
     handle_exception = getExceptionHandler(logger)
     def handle_ipython_exception(shell,exc_type,exc_value,exc_traceback,tb_offset=None):
         handle_exception(exc_type,exc_value,exc_traceback)
