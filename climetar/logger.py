@@ -38,15 +38,14 @@ def getStdOutHandler(stream=sys.stdout):
     shand.setLevel(logging.INFO)
     shand.addFilter(LevelFilter(0,35)) # Only upto Warnings (inclusive)
     shand.addFilter(TracebackInfoFilter(clear=True))
-    sfmtr = logging.Formatter(LogStringFormatter())
-    shand.setFormatter(sfmtr)
+    shand.setFormatter(LogViewFormatter())
     return shand
 
 def getStdErrHandler(stream=sys.stderr):
     shand = logging.StreamHandler(stream=stream)
     shand.setLevel(logging.ERROR)
     shand.addFilter(TracebackInfoFilter(clear=True))
-    sfmtr = logging.Formatter(LogStringFormatter(append={45:'\nZie climetar.log voor meer info...'}))
+    sfmtr = LogViewFormatter(append={45:'\nZie climetar.log voor meer info...'})
     shand.setFormatter(sfmtr)
     return shand
 
@@ -73,19 +72,31 @@ class LevelFilter(logging.Filter):
         return False
 
 class LogFileFormatter(logging.Formatter):
-    # Indents the traceback at logging
-    def __init__(self,indent=4):
-        fmt = '%(levelname)-9s %(asctime)s %(name)-20s %(pathname)s:%(lineno)d %(funcName)s\n%(message)s'
+    def __init__(self,fmt=None,datefmt=None,style='%',validate=True,indent=4,**kwargs):
+        if fmt is None:
+            fmt = '%(levelname)-9s %(asctime)s %(name)-20s %(pathname)s:%(lineno)d %(funcName)s\n%(message)s'
+            style = '%'
+        logging.Formatter.__init__(self, fmt, datefmt, style, validate, **kwargs)
         self.indent = indent
-        logging.Formatter.__init__(self, fmt)
     def format(self,record):
-        msg = logging.Formatter.format(self, record).split("\n")
-        msgi = [msg[0]] + [self.indent*" "+m for m in msg[1:]]
-        return "\n".join(msgi)
-class LogStringFormatter(logging.Formatter):
-    # Indents the traceback at logging
-    def __init__(self,append=None,indent=4):
-        fmt = '[%(levelname)s] %(message)s'
+        msg = super().format(record)
+        msg = "\n".join([(m if i==0 else self.indent*" "+m) for i,m in enumerate(msg.split("\n"))])
+        return msg
+class LogViewFormatter(logging.Formatter):
+    def __init__(self,fmt=None,datefmt=None,style='%',validate=True,indent=4,append=None,**kwargs):
+        if fmt is None:
+            fmt = '[%(levelname)s] %(message)s'
+            style = '%'
+        logging.Formatter.__init__(self, fmt, datefmt, style, validate, **kwargs)
+        self.indent = indent
+        self.append = {} if append is None else append
+    def format(self,record):
+        msg = super().format(record)
+        msg = "\n".join([(m if i==0 else self.indent*" "+m) for i,m in enumerate(msg.split("\n"))])
+        for k,v in self.append.items():
+            if record.levelno >= k:
+                msg += v
+
         replace_dict = {
             '[DEBUG]': '',
             '[INFO]': '',
@@ -93,17 +104,8 @@ class LogStringFormatter(logging.Formatter):
             '[ERROR]': '[Fout]',
             '[CRITICAL]': '[Fout]',
         }
-        self.indent = indent
-        self.append = {} if append is None else append
-        logging.Formatter.__init__(self, fmt)
-    def format(self,record):
-        msg = logging.Formatter.format(self, record).split("\n")
-        msg = "\n".join([msg[0]] + [self.indent*" "+m for m in msg[1:]])
         for k,v in replace_dict.items():
             msg = msg.replace(k,v)
-        for k,v in self.append.items():
-            if record.levelno >= k:
-                msg += v
         return msg.strip()
 
 def getNewLogRecordFactory():
