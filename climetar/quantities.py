@@ -6,7 +6,6 @@ ToDo:
 import logging
 _log = logging.getLogger(__name__)
 
-
 import collections
 import fractions
 import numbers
