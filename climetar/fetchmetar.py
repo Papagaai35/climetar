@@ -131,17 +131,30 @@ class MetarFetcher(object):
         urlp = urllib.parse.urlencode(list(urlparams.items()),doseq=True)
         uri = 'https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?' + urlp
 
-        if self.is_connected(uri):
+        printurl = False
+        if self.is_connected(uri) and False:
             filename, filemode = self.path_check(filename,overwrite)
-            with open(filename, filemode) as fh:
-                data = self.download_data_from_uri(uri)
-                fh.write(data)
-            _log.info(f'Bestand gedownload naar {filename}')
+            print('Bestand downloaden...',end='\r',flush=True)
+            try:
+                with open(filename, filemode) as fh:
+                    data = self.download_data_from_uri(uri)
+                    fh.write(data)
+                _log.info(f'Bestand gedownload naar {filename}')
+            except ValueError as err:
+                if str(err)=="Download is verschillende keren mislukt.":
+                    printurl = True
+                    _log.error(str(err))
+                    _log.info("Probeer het bestand handmatig te downloaden.")
+                else:
+                    raise
         else:
-            _log.info('Geen internetverbining gedetecteerd.\n'
-                f'Waarschijnlijk maak je gebruik van een netwerk zonder internet, zoals MULAN.'
-                f'In dat geval kun je gebruik maken van Internet op de Werkplek (https://iodwwerkplek.mindef.nl/)\n\n'
-                f'Download het bestand van de volgende website, en sla deze op in de map "downloads". '
+            printurl = True
+            _log.warning('Geen internetverbining gedetecteerd.\n'
+                'Waarschijnlijk maak je gebruik van een netwerk zonder internet, zoals MULAN.\n'
+                'In dat geval kun je gebruik maken van Internet op de Werkplek (https://iodwwerkplek.mindef.nl/)')
+        if printurl:
+            print()
+            _log.info('Download het bestand van de volgende website, en sla deze op in de map "downloads". '
                 f'De download kan enkele minuten duren.\n'
                 f'{uri}')
 
