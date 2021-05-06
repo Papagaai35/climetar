@@ -13,6 +13,7 @@ class MetarTheme(object):
         self.theme = {}
         self.load(json_or_file if json_or_file is not None else self.default_theme)
     def load(self,json_or_file):
+        fromfile = False
         if len(json_or_file)>255:
             self.load_json_str(json_or_file)
         else:
@@ -23,6 +24,8 @@ class MetarTheme(object):
                 self.load_json_str(json_or_file)
         if self.theme is None:
             raise ValueError('Invalid theme passed:\n%s'%json_or_file)
+        else:
+            _log.debug("Loaded MetarTheme from %s"%(json_or_file if fromfile else 'str'))
     def load_json_str(self,jsonstr):
         try:
             self.theme = json.loads(jsonstr)
