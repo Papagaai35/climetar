@@ -16,6 +16,7 @@ class StationRepo(object):
     def load_jsonstr_or_file(self,json_or_file):
         if json_or_file is not None:
             repo = None
+            fromfile = False
             try:
                 repo = json.loads(json_or_file)
             except:
@@ -23,10 +24,12 @@ class StationRepo(object):
                     if os.path.exists(json_or_file) and os.path.isfile(json_or_file):
                         with open(json_or_file,'r') as fh:
                             repo = json.load(fh)
+                            fromfile = True
                 except:
                     pass
             if repo is not None:
                 self.repo = repo
+                _log.debug('Loaded StationRepo from %s'%(json_or_file if fromfile else 'str'))
             else:
                 raise ValueError('Invalid repo passed:\n%s'%json_or_file)
 
