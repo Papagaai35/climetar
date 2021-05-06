@@ -53,6 +53,7 @@ class MetarPlotter(object):
         self.years = {}
 
         self._load_locales()
+        _log.debug("Loaded MetarPlotter with settings:\n"+json.dumps(settings))
 
     def _load_locales(self):
         #locale.setlocale(locale.LC_ALL,self.locale)
@@ -87,6 +88,7 @@ class MetarPlotter(object):
 
         self.reset_filters()
         self.years = {}
+        _log.debug("Loaded station %s"%station)
     def get_astro(self,station=None,year=None,force=False):
         if force or self.astro is None:
             station = station if station is not None else self.station
@@ -97,6 +99,7 @@ class MetarPlotter(object):
     def reset_filters(self):
         self.pdf = self.df.copy(deep=True)
         self.filters = dict([(k,(None,None,None)) for k in ['year','month','day','hour','minutes_valid']])
+        _log.debug("Resetting all filters")
     def redo_filters(self,filters):
         for k,v in filters.items():
             if hasattr(self,f'filter_{k}'):
@@ -120,7 +123,6 @@ class MetarPlotter(object):
                 else:
                     raise ValueError("Filterwaarde moet beginnen met >, <, of =, of een bereik aangeven [vanaf]..[tot]")
 
-
     def filter_series(self,series,gte=None,lte=None,eq=None):
         if gte is not None and lte is not None:
             if gte==lte:
@@ -138,14 +140,19 @@ class MetarPlotter(object):
         return gte,lte,eq
     def filter_year(self,gte=None,lte=None,eq=None):
         self.filters['year'] = self.filter_series(self.pdf.time.dt.year,gte,lte,eq)
-    def filter_month(self,gte=None,lte=None,eq=None):
+        _log.debug(f"Filtering data on year (<={lte},>={gte},=={eq})")
+    def filter_month(self,gte=None,lte=None,eq=None):,
         self.filters['month'] = self.filter_series(self.pdf.time.dt.month,gte,lte,eq)
+        _log.debug(f"Filtering data on month (<={lte},>={gte},=={eq})")
     def filter_day(self,gte=None,lte=None,eq=None):
         self.filters['day'] = self.filter_series(self.pdf.time.dt.day,gte,lte,eq)
+        _log.debug(f"Filtering data on day (<={lte},>={gte},=={eq})")
     def filter_hour(self,gte=None,lte=None,eq=None):
         self.filters['hour'] = self.filter_series(self.pdf.time.dt.hour,gte,lte,eq)
+        _log.debug(f"Filtering data on hour (<={lte},>={gte},=={eq})")
     def filter_minutes_valid(self,gte=None,lte=None,eq=None):
         self.filters['minutes_valid'] = self.filter_series(self.pdf.minutes_valid,gte,lte,eq)
+        _log.debug(f"Filtering data on minutes_valid (<={lte},>={gte},=={eq})")
 
     @classmethod
     def frange(cls,f,default_start,default_end):
@@ -206,30 +213,38 @@ class MetarPlotter(object):
                     imgda = self.load_map_raster('NE1_LR_LC_SR_W_DR')
                     step = int(np.clip(np.ceil(.5/zoom),1,None))
                     img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,step)
+                    _log.debug('Adding NE1_LR_LC_SR_W_DR to map')
                 else:
                     imgda = self.load_map_raster('NE1_HR_LC_SR_W_DR')
                     img_extent, img_da = MapPlotHelper.slice_img(img_extent,imgda,1 if zoom>=1.33 else 2)
+                    _log.debug('Adding NE1_HR_LC_SR_W_DR to map')
                 ax.imshow(img_da.values,
                     origin='upper',
                     transform=trans,
                     extent=img_extent,
                     zorder=-2)
-            except ValueError:
-                print('De kaartachtergrond-bestanden konden niet worden gevonden. Kaart wordt geplot zonder achtergrond.')
-                print('Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
+            except ValueError as e:
+                _log.tryexcept(repr(e),exc_info=e)
+                _log.warning('De kaartachtergrond-bestanden konden niet worden gevonden. '
+                    'Kaart wordt geplot zonder achtergrond.\n'
+                    'Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
 
             try:
                 hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
                 if zoom < 1 or not hires_available:
                     shp = self.load_map_shape('ne_50m_admin_0_countries')
+                    _log.debug('Adding ne_50m_admin_0_countries to map')
                 else:
                     shp = self.load_map_shape('ne_10m_admin_0_countries')
+                    _log.debug('Adding ne_10m_admin_0_countries to map')
                 sf = cartopy.feature.ShapelyFeature(shp.geometries(),trans,
                     facecolor='none',edgecolor='#666666',linewidth=.75,zorder=-1)
                 ax.add_feature(sf,zorder=-1)
             except ValueError:
-                print('De Landgrens-bestanden konden niet worden gevonden. Kaart wordt geplot zonder grenzen.')
-                print('Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
+                _log.tryexcept(repr(e),exc_info=e)
+                _log.warning('De Landgrens-bestanden konden niet worden gevonden. '
+                    'Kaart wordt geplot zonder grenzen.\n'
+                    'Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
 
     def categorize_wind_dirs(self):
         catborders = [0,11.25,33.75,56.25,78.75,101.25,123.75,146.25,168.75,
@@ -567,30 +582,6 @@ class MetarPlotter(object):
         if savefig is not None:
              plt.savefig(savefig)
              plt.close()
-    def generate_monthly_plots(self):
-        basefilters = copy.copy(self.filters)
-
-        for month in self.frange(basefilters['month'],1,12):
-            print(self.locales['monthabbr'][month],end=' ',flush=True)
-            self.reset_filters()
-            self.redo_filters(basefilters)
-            self.filter_month(eq=month)
-
-            dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
-            if not os.path.exists(dirname_figs):
-                pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
-            self.plotset_daily(os.path.join(dirname_figs,f'A{month:02d}.png'))
-            self.plotset_wind(os.path.join(dirname_figs,f'B{month:02d}.png'))
-            self.plotset_gust(os.path.join(dirname_figs,f'C{month:02d}.png'))
-            self.plotset_wx(os.path.join(dirname_figs,f'D{month:02d}.png'))
-
-            self.years[month] = self.pdf.time.dt.year.min(), self.pdf.time.dt.year.max()
-
-        self.plotset_daily_cycle_legend(os.path.join(dirname_figs,f'LEGEND.png'))
-        self.plotset_logo(os.path.join(dirname_figs,f'LOGO.png'))
-
-        self.reset_filters()
-        self.redo_filters(basefilters)
 
     # Averages per year (yearly cycles) Plots
     def plot_ym_cycle_tmin_tmax(self,ax,unit='°C'):
@@ -1325,34 +1316,53 @@ class MetarPlotter(object):
             dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
             if not os.path.exists(dirname_figs):
                 pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
-        print("Figuren %s:"%self.station,end=' ',flush=True)
-        print("Map",end=' ',flush=True)
-        self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
 
-        print("Temp",end=' ',flush=True)
+        msg = "Figuren %s: "%self.station
+        print(msg,end='\r',flush=True)
+
+        msg += "Temp "
+        print(msg,end='\r',flush=True)
         self.plotset_ymwide_tmin_tmax(savefig=os.path.join(dirname_figs,'Y_temp.png') if savefig else None)
         self.plotset_ymwide_wcet(savefig=os.path.join(dirname_figs,'Y_wcet.png') if savefig else None)
         self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'Y_wbgt.png') if savefig else None)
-        print("RH",end=' ',flush=True)
+
+        msg += "RH "
+        print(msg,end='\r',flush=True)
         self.plotset_ymwide_relh(savefig=os.path.join(dirname_figs,'Y_relh.png') if savefig else None)
-        print("Vis",end=' ',flush=True)
+
+        msg += "Vis "
+        print(msg,end='\r',flush=True)
         self.plotset_ymwide_vism(savefig=os.path.join(dirname_figs,'Y_vis.png') if savefig else None)
-        print("Wind",end=' ',flush=True)
+
+        msg += "Wind "
+        print(msg,end='\r',flush=True)
         self.plotset_wind(savefig=os.path.join(dirname_figs,'Y_wind.png') if savefig else None)
-        print("Cloud",end=' ',flush=True)
+
+        msg += "Cloud "
+        print(msg,end='\r',flush=True)
         self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'Y_ceiling.png') if savefig else None)
         self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'Y_cloud_cover.png') if savefig else None)
 
-        print("Percip",end=' ',flush=True)
+        msg += "Precipitation "
+        print(msg,end='\r',flush=True)
         self.plotset_ymwide_precipdays(savefig=os.path.join(dirname_figs,'Y_precipitation.png') if savefig else None)
-        print("Color",end=' ',flush=True)
+
+        msg += "Color "
+        print(msg,end='\r',flush=True)
         self.plotset_ymwide_color(savefig=os.path.join(dirname_figs,'Y_color_state.png') if savefig else None)
 
-        print("Solar",end=' ',flush=True)
+        msg += "Solar "
+        print(msg,end='\r',flush=True)
         self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
 
-        print("Klaar")
-        print("Afbeeldingen kunnen gevonden worden in %s/"%dirname_figs)
+        msg += "Map "
+        print(msg,end='\r',flush=True)
+        self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
+
+        msg += "Klaar."
+        print(msg,end='\r',flush=True)
+        print("\n")
+        _log.info("Afbeeldingen kunnen gevonden worden in %s/"%dirname_figs)
 
     # Non-meteo plots
     def plotset_logo(self,savefig=None):
@@ -1432,7 +1442,7 @@ class MetarPlotter(object):
         for pfn in plotsets:
             obj = getattr(self,pfn)
             if callable(obj) and pfn not in but_not:
-                print(pfn)
+                _log.info(pfn)
                 obj()
 
 
@@ -1482,15 +1492,46 @@ class MetarPlotter(object):
             if os.path.isfile(filepath) and not filepath.endswith(".pdf"):
                 os.remove(filepath)
     def generate_monthly_pdf(self):
-        print(f'Figuren {self.station}:',end=' ',flush=True)
-        self.generate_monthly_plots()
-        print(f'TEX',end=' ',flush=True)
-        self.generate_monthly_tex()
-        print(f'PDF',end=' ',flush=True)
-        self.generate_monthly_pdf_from_tex()
-        print(f'Klaar.',flush=True)
+        msg = f'Figuren {self.station}: '
+        print(msg,end='\r',flush=True)
+        basefilters = copy.copy(self.filters)
 
-        print('De PDF kan gevonden worden in "%s"'%os.path.join(self.filepaths['output'],self.station,self.station_data['icao'].upper()+"_monthly.pdf"))
+        for month in self.frange(basefilters['month'],1,12):
+            msg += self.locales['monthabbr'][month]+' '
+            print(msg,end='\r',flush=True)
+            self.reset_filters()
+            self.redo_filters(basefilters)
+            self.filter_month(eq=month)
+
+            dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
+            if not os.path.exists(dirname_figs):
+                pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
+            self.plotset_daily(os.path.join(dirname_figs,f'A{month:02d}.png'))
+            self.plotset_wind(os.path.join(dirname_figs,f'B{month:02d}.png'))
+            self.plotset_gust(os.path.join(dirname_figs,f'C{month:02d}.png'))
+            self.plotset_wx(os.path.join(dirname_figs,f'D{month:02d}.png'))
+
+            self.years[month] = self.pdf.time.dt.year.min(), self.pdf.time.dt.year.max()
+
+        self.plotset_daily_cycle_legend(os.path.join(dirname_figs,f'LEGEND.png'))
+        self.plotset_logo(os.path.join(dirname_figs,f'LOGO.png'))
+
+        self.reset_filters()
+        self.redo_filters(basefilters)
+
+        msg += 'TEX '
+        print(msg,end='\r',flush=True)
+        self.generate_monthly_tex()
+
+        msg += 'PDF '
+        print(msg,end='\r',flush=True)
+        self.generate_monthly_pdf_from_tex()
+
+        msg += 'Klaar.'
+        print(msg,end='\r',flush=True)
+        print("\n")
+
+        _log.info('De PDF kan gevonden worden in "%s"'%os.path.join(self.filepaths['output'],self.station,self.station_data['icao'].upper()+"_monthly.pdf"))
 
 class MapPlotHelper(object):
     @classmethod
@@ -1529,7 +1570,7 @@ class MapPlotHelper(object):
                        if isinstance(exts,list) else
                        [f'{name}.{exts}',f'{name}/{name}.{exts}'])
                 if any([pl in filelist for pl in pls]):
-                    print(f'Uitpakken van "{zip_path}" naar "{zipextract_path}"...')
+                    _log.debug(f'Uitpakken van "{zip_path}" naar "{zipextract_path}"...')
                     zipfh.extractall(zipextract_path)
                 else:
                     raise ValueError(f'Zipfile "{zip_path}" bevat niet de benodigde bestanden ({name}.{extstr})')

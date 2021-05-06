@@ -30,6 +30,7 @@ class MetarTheme(object):
         try:
             self.theme = json.loads(jsonstr)
         except:
+            _log.tryexcept(repr(e),exc_info=e)
             pass
     def validate_theme(self):
         assert("facecolor" in self.theme)

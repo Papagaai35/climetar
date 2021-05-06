@@ -1,6 +1,7 @@
 # Imports logging posibilities
 from .logger import getLogger
 _log = getLogger(__name__)
+from .logdev import *
 
 #Prevents the 'Bad Key "text.kerning_factor" on line 4' warning when working with matplotlib
 import os

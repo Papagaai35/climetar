@@ -110,6 +110,7 @@ class MetarFiles(object):
                 mo.handle()
                 metar_parsed.append(mo.to_dict())
             except Exception as exc:
+                _log.tryexcept(repr(e),exc_info=e)
                 raise ValueError('Kon metar-bericht niet verwerken (blok %d, regel %d):\n%s' % (chuncknr,index,row['metar'])) from exc
 
         df = pd.DataFrame(metar_parsed)

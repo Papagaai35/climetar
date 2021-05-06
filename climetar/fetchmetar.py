@@ -183,6 +183,7 @@ class MetarFetcher(object):
                 if data is not None and not data.startswith("ERROR"):
                     return data
             except Exception as exp:
+                _log.tryexcept(repr(e),exc_info=e)
                 _log.debug(f"Download failed {attempt:d}/5: {uri}")
                 time.sleep(5)
             attempt += 1

@@ -4,6 +4,7 @@ import traceback
 
 def getLogger(name):
     logging.setLogRecordFactory(getNewLogRecordFactory())
+    addLevel('tryexcept',39)
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(getLogFileHandler())
@@ -15,6 +16,14 @@ def getLogger(name):
     except NameError:
         sys.excepthook = getExceptionHandler(logger)
     return logger
+
+def addLevel(name,level):
+    setattr(logging,name.upper(),level)
+    logging.addLevelName(level,name.upper())
+    def logfunc(self,message,*args,**kwargs):
+        if self.isEnabledFor(level):
+            self._log(level, message, args, **kwargs)
+    setattr(logging.Logger,name.lower(),logfunc)
 
 def getLogFileHandler(filename='climetar.log'):
     maxBytes = 15*(1024**2) #15 MiB
@@ -29,7 +38,7 @@ def getStdOutHandler(stream=sys.stdout):
     shand.setLevel(logging.INFO)
     shand.addFilter(LevelFilter(0,35)) # Only upto Warnings (inclusive)
     shand.addFilter(TracebackInfoFilter(clear=True))
-    sfmtr = logging.Formatter('[Waarschuwing] %(message)s')
+    sfmtr = logging.Formatter(LogStringFormatter())
     shand.setFormatter(sfmtr)
     return shand
 
@@ -37,7 +46,7 @@ def getStdErrHandler(stream=sys.stderr):
     shand = logging.StreamHandler(stream=stream)
     shand.setLevel(logging.ERROR)
     shand.addFilter(TracebackInfoFilter(clear=True))
-    sfmtr = logging.Formatter('[Fout] %(message)s\nZie climetar.log voor meer info...')
+    sfmtr = logging.Formatter(LogStringFormatter(append={45:'\nZie climetar.log voor meer info...'}))
     shand.setFormatter(sfmtr)
     return shand
 
@@ -66,13 +75,36 @@ class LevelFilter(logging.Filter):
 class LogFileFormatter(logging.Formatter):
     # Indents the traceback at logging
     def __init__(self,indent=4):
-        fmt = '%(levelname)-8s %(asctime)s %(name)-20s %(pathname)s:%(lineno)d %(funcName)s\n%(message)s'
+        fmt = '%(levelname)-9s %(asctime)s %(name)-20s %(pathname)s:%(lineno)d %(funcName)s\n%(message)s'
         self.indent = indent
         logging.Formatter.__init__(self, fmt)
     def format(self,record):
         msg = logging.Formatter.format(self, record).split("\n")
         msgi = [msg[0]] + [self.indent*" "+m for m in msg[1:]]
         return "\n".join(msgi)
+class LogStringFormatter(logging.Formatter):
+    # Indents the traceback at logging
+    def __init__(self,append=None,indent=4):
+        fmt = '[%(levelname)s] %(message)s'
+        replace_dict = {
+            '[DEBUG]': '',
+            '[INFO]': '',
+            '[WARNING]': '[Waarschuwing]',
+            '[ERROR]': '[Fout]',
+            '[CRITICAL]': '[Fout]',
+        }
+        self.indent = indent
+        self.append = {} if append is None else append
+        logging.Formatter.__init__(self, fmt)
+    def format(self,record):
+        msg = logging.Formatter.format(self, record).split("\n")
+        msg = "\n".join([msg[0]] + [self.indent*" "+m for m in msg[1:]])
+        for k,v in replace_dict.items():
+            msg = msg.replace(k,v)
+        for k,v in self.append.items():
+            if record.levelno >= k:
+                msg += v
+        return msg.strip()
 
 def getNewLogRecordFactory():
     #Makes sure that exceptions gets logged at their raise command, instead of this file.
