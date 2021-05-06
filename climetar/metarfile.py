@@ -7,8 +7,10 @@ import glob
 import math
 import os
 import time
-import pandas as pd
 import itertools
+
+import pandas as pd
+import numpy as np
 
 from . import metar, StationRepo
 
@@ -49,7 +51,12 @@ def analyse_glob(glob_pattern,rerun_parsed=False,output_folder=None):
             continue
 
         mfs = MetarFiles(datastore=output_folder)
-        if mfs.import_raw(filepath):
+        imported = False
+        try:
+            imported = mfs.import_raw(filepath)
+        except Exception as err:
+            _log.error(repr(err),exc_info=err)
+        if imported:
             analysed.append(filepath)
 
             new_filename = filebase if 'analysed' in filebase else filebase+'.analysed'
@@ -139,6 +146,9 @@ class MetarFiles(object):
     def import_raw(self,filepath,chunk=3e4):
         versiontuple = lambda v: tuple(map(int, (v.split("."))))
         num_lines = sum(1 for line in open(filepath))
+        if num_lines<2:
+            _log.warning('Analyseren van %s overslaan. Bestand is leeg...'%(filepath))
+            return True
         df_kwargs = {'usecols':['station','valid','metar'],'dtype':str,'parse_dates':['valid'],'dayfirst':True}
         if chunk is None:
             _log.info('Analyseren van %s, in een keer'%(filepath))
@@ -147,7 +157,7 @@ class MetarFiles(object):
         elif versiontuple(pd.__version__) >= versiontuple('1.2.0'):
             numchunks = num_lines//chunk+1
             times = []
-            _log.info('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,numchunks,chunk))
+            _log.info('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,numchunks,min(num_lines,chunk)))
             with pd.read_csv(filepath,chunksize=chunk,**df_kwargs) as reader:
                 c=1
                 print('Blok 1/%d wordt geanalyseerd. ETA %s'%(numchunks,format_period(num_lines/1e3)),end='\r',flush=True)
@@ -157,7 +167,7 @@ class MetarFiles(object):
                     end = time.time()
                     duration = end-start
                     times.append(duration)
-                    avgduration = mean(times[-3:] if len(times)>3 else times)
+                    avgduration = np.mean(times[-3:] if len(times)>3 else times)
                     totduration = avgduration * ((num_lines-(c*chunk))/chunk)
                     msg = 'Blok %d/%d geanalyseerd in %s.'%(c,numchunks,format_period(duration))
                     if c!=numchunks:
@@ -171,7 +181,7 @@ class MetarFiles(object):
         else:
             numchunks = num_lines//chunk+1
             times = []
-            _log.info('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,chunk))
+            _log.info('Analyseren van %s, in %d blokken van %d METAR-berichten'%(filepath,num_lines//chunk+1,min(num_lines,chunk)))
             tfr = pd.read_csv(filepath,chunksize=chunk,**df_kwargs)
             c=1
             print('Blok 1/%d wordt geanalyseerd. ETA %s'%(numchunks,format_period(num_lines/1e3)),end='\r',flush=True)
