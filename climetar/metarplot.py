@@ -1291,11 +1291,11 @@ class MetarPlotter(object):
             plt.close()
     def plotset_ymwide_solar(self,savefig=None):
         fig = plt.figure(figsize=(6.3,2.1))
-        width = .80
-        ax = fig.add_axes([.05,.10,width,.85])
+        width = .70
+        ax = fig.add_axes([.1,.10,width,.85])
         self.plot_ym_solar(ax,legend=False)
 
-        ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
+        ax2 = fig.add_axes([width+.1,.1,1-width-.08,.8])
         style = self.theme.get_set('patch.solar')
         nooncolor = self.theme.get('solar_noon')[0]['facecolor']
 
