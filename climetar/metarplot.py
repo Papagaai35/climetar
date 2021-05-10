@@ -849,7 +849,7 @@ class MetarPlotter(object):
         freq_unit = freq_quantity.find_unit(freq_unit)
 
         data = self.pdf.groupby([self.pdf.time.dt.month,self.pdf.sky_cover])['minutes_valid'].sum().unstack()
-        data = np.divide(data,data.sum(axis=1)[:,None]).reindex(metar.Metar._cloud_cover_codes.keys(),axis=1)
+        data = np.divide(data,data.sum(axis=1).values[:,None]).reindex(metar.Metar._cloud_cover_codes.keys(),axis=1)
         clear_index = data[['SKC','NCD','CLR','NSC']].sum().idxmax()
         data[clear_index] = data[['SKC','NCD','CLR','NSC']].sum(axis=1)
         data = data[reversed([clear_index,'FEW','SCT','BKN','OVC','VV'])]
@@ -886,7 +886,7 @@ class MetarPlotter(object):
 
         colorcodes = ['BLU+','BLU','WHT','GRN','YLO','YLO1','YLO2','AMB','RED']
         data = self.pdf.groupby([self.pdf.time.dt.month,self.pdf.calc_color])['minutes_valid'].sum().unstack()
-        data = np.divide(data,data.sum(axis=1)[:,None])
+        data = np.divide(data,data.sum(axis=1).values[:,None])
         data = data.reindex(colorcodes,axis=1)
 
         if data['BLU+'].isnull().all():
@@ -1321,48 +1321,48 @@ class MetarPlotter(object):
                 pathlib.Path(dirname_figs).mkdir(parents=True, exist_ok=True)
 
         msg = "Figuren %s: "%self.station
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
 
         msg += "Temp "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_tmin_tmax(savefig=os.path.join(dirname_figs,'Y_temp.png') if savefig else None)
         self.plotset_ymwide_wcet(savefig=os.path.join(dirname_figs,'Y_wcet.png') if savefig else None)
         self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'Y_wbgt.png') if savefig else None)
 
         msg += "RH "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_relh(savefig=os.path.join(dirname_figs,'Y_relh.png') if savefig else None)
 
         msg += "Vis "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_vism(savefig=os.path.join(dirname_figs,'Y_vis.png') if savefig else None)
 
         msg += "Wind "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_wind(savefig=os.path.join(dirname_figs,'Y_wind.png') if savefig else None)
 
         msg += "Cloud "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'Y_ceiling.png') if savefig else None)
         self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'Y_cloud_cover.png') if savefig else None)
 
         msg += "Precipitation "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_precipdays(savefig=os.path.join(dirname_figs,'Y_precipitation.png') if savefig else None)
 
         msg += "Color "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_color(savefig=os.path.join(dirname_figs,'Y_color_state.png') if savefig else None)
 
         msg += "Solar "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
 
         msg += "Map "
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
 
-        msg += "Klaar."
+        msg += "Klaar!"
         print(msg,end='\r',flush=True)
         print("\n")
         _log.info("Afbeeldingen kunnen gevonden worden in %s/"%dirname_figs)
@@ -1506,7 +1506,7 @@ class MetarPlotter(object):
 
         for month in self.frange(basefilters['month'],1,12):
             msg += self.locales['monthabbr'][month]+' '
-            print(msg,end='\r',flush=True)
+            print(msg+'...',end='\r',flush=True)
             self.reset_filters()
             self.redo_filters(basefilters)
             self.filter_month(eq=month)
@@ -1528,14 +1528,14 @@ class MetarPlotter(object):
         self.redo_filters(basefilters)
 
         msg += 'TEX '
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.generate_monthly_tex()
 
         msg += 'PDF '
-        print(msg,end='\r',flush=True)
+        print(msg+'...',end='\r',flush=True)
         self.generate_monthly_pdf_from_tex()
 
-        msg += 'Klaar.'
+        msg += 'Klaar!'
         print(msg,end='\r',flush=True)
         print("\n")
 
