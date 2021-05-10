@@ -1384,9 +1384,9 @@ class MetarPlotter(object):
         print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
 
-        msg += "Map "
-        print(msg+'...',end='\r',flush=True)
-        self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
+        #msg += "Map "
+        #print(msg+'...',end='\r',flush=True)
+        #self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
 
         msg += "Klaar!"
         print(msg,end='\r',flush=True)
