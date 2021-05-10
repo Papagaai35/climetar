@@ -98,69 +98,95 @@ class MetarPlotter(object):
 
     def reset_filters(self):
         self.pdf = self.df.copy(deep=True)
-        self.filters = dict([(k,(None,None,None)) for k in ['year','month','day','hour','minutes_valid']])
+        self.filters = dict([(k,[]) for k in ['year','month','day','hour','minutes_valid']])
         _log.debug("Resetting all filters")
     def redo_filters(self,filters):
-        for k,v in filters.items():
+        for k,fltrs in filters.items():
             if hasattr(self,f'filter_{k}'):
-                getattr(self,f'filter_{k}')(*v)
+                for fltr in fltrs:
+                    getattr(self,f'filter_{k}')(*fltr)
     def apply_filters(self,filters):
         for k,v in filters.items():
             if k not in self.filters:
                 raise ValueError('Kan niet filteren op "%s", kies een van year,month,day,hour,minutes_valid')
-            if '..' in v:
-                v1,v2 = v.split('..',2)
-                getattr(self,f'filter_{k}')(gte=float(v1),lte=float(v2))
+            if '...' in v:
+                v1,v2 = v.split('...',2)
+                getattr(self,f'filter_{k}')('...',[float(v1),float(v2)])
+            elif v[0:2] in ['==','>=','<=','!=']:
+                getattr(self,f'filter_{k}')(v[0:2],float(v[2:]))
+            elif v[0] in '=<>':
+                getattr(self,f'filter_{k}')(v[0],float(v[1:]))
             else:
-                if v[1]=='=':
-                    v = v[0]+v[2:]
-                if v[0] in '>':
-                    getattr(self,f'filter_{k}')(gte=float(v[1:]))
-                elif v[0] in '<':
-                    getattr(self,f'filter_{k}')(lte=float(v[1:]))
-                elif v[0] in '=':
-                    getattr(self,f'filter_{k}')(eq=float(v[1:]))
-                else:
-                    raise ValueError("Filterwaarde moet beginnen met >, <, of =, of een bereik aangeven [vanaf]..[tot]")
+                raise ValueError("Filterwaarde moet beginnen met >, >=, <=, <, =, of !=  of een bereik aangeven [vanaf]...[tot]")
+                    
+    def filter_series(self,series,operator,value):
+        if operator=='...':
+            if isinstance(value,(list,tuple)) and len(value)>=2:
+                value = [float(value[0]),float(value[1])]
+                self.pdf = self.pdf.loc[series.between(value[0],value[1])]
+            else:
+                raise ValueError("Een filter voor een bereik '...' moet 2 waardes bevatten (in een lijst of tuple)")
+        else:
+            value = float(value)
+            if operator=='==' or operator=='=':
+                self.pdf = self.pdf.loc[series==value]
+                operator='='
+            elif operator=='!=':
+                self.pdf = self.pdf.loc[series!=value]
+            elif operator=='>':
+                self.pdf = self.pdf.loc[series>value]
+            elif operator=='>=':
+                self.pdf = self.pdf.loc[series>=value]
+            elif operator=='<=':
+                self.pdf = self.pdf.loc[series<=value]
+            elif operator=='<':
+                self.pdf = self.pdf.loc[series<value]
+            else:
+                raise ValueError("Een filter kan gebruik maken van de operators [...,==,=,!=,>,>=,<=,<]")
+        return operator,value
 
-    def filter_series(self,series,gte=None,lte=None,eq=None):
-        if gte is not None and lte is not None:
-            if gte==lte:
-                gte,lte,eq = None,None,gte
-            if gte>lte:
-                gte,lte,eq = lte,gte,None
-        if eq is not None:
-            self.pdf = self.pdf.loc[series==eq]
-        elif gte is not None and lte is not None:
-            self.pdf = self.pdf.loc[series.between(gte,lte)]
-        elif gte is not None:
-            self.pdf = self.pdf.loc[series >= gte]
-        elif lte is not None:
-            self.pdf = self.pdf.loc[series <= lte]
-        return gte,lte,eq
-    def filter_year(self,gte=None,lte=None,eq=None):
-        self.filters['year'] = self.filter_series(self.pdf.time.dt.year,gte,lte,eq)
-        _log.debug("Filtering data on year (<={},>={},=={})")
-    def filter_month(self,gte=None,lte=None,eq=None):
-        self.filters['month'] = self.filter_series(self.pdf.time.dt.month,gte,lte,eq)
-        _log.debug(f"Filtering data on month (<={lte},>={gte},=={eq})")
-    def filter_day(self,gte=None,lte=None,eq=None):
-        self.filters['day'] = self.filter_series(self.pdf.time.dt.day,gte,lte,eq)
-        _log.debug(f"Filtering data on day (<={lte},>={gte},=={eq})")
-    def filter_hour(self,gte=None,lte=None,eq=None):
-        self.filters['hour'] = self.filter_series(self.pdf.time.dt.hour,gte,lte,eq)
-        _log.debug(f"Filtering data on hour (<={lte},>={gte},=={eq})")
-    def filter_minutes_valid(self,gte=None,lte=None,eq=None):
-        self.filters['minutes_valid'] = self.filter_series(self.pdf.minutes_valid,gte,lte,eq)
-        _log.debug(f"Filtering data on minutes_valid (<={lte},>={gte},=={eq})")
-
+    def store_filter(self,name,operator,value):
+        self.filters[name].append((operator,value))
+        filterstring = f'{value[0]:.3f}...{value[1]:.3f}' if operator=='...' and isinstance(value,(list,tuple)) and len(value)>=2 else f'{operator}{value:.3f}'
+        _log.debug(f"Filtering data on {name} ({filterstring})")
+        
+    def filter_year(self,operator,value):
+        f = self.filter_series(self.pdf.time.dt.year,operator,value)
+        self.store_filter('year',*f)
+    def filter_month(self,operator,value):
+        f = self.filter_series(self.pdf.time.dt.month,operator,value)
+        self.store_filter('month',*f)
+    def filter_day(self,operator,value):
+        f = self.filter_series(self.pdf.time.dt.day,operator,value)
+        self.store_filter('day',*f)
+    def filter_hour(self,operator,value):
+        f = self.filter_series(self.pdf.time.dt.hour,operator,value)
+        self.store_filter('hour',*f)
+    def filter_minutes_valid(self,operator,value):
+        f = self.filter_series(self.pdf.minutes_valid,operator,value)
+        self.store_filter('minutes_valid',*f)
+    
+    def get_filter_minmax(self,name):
+        return self.calc_filter_minmax(self.filters[name])
     @classmethod
-    def frange(cls,f,default_start,default_end):
-        start = (f[0] if f[0] is not None else (
-            f[2] if f[2] is not None else default_start ))
-        end = 1+(f[1] if f[1] is not None else (
-            f[2] if f[2] is not None else default_end ))
+    def calc_filter_minmax(cls,fltrs):
+        minval, maxval = None,None
+        for oper, val in fltrs:
+            if oper in ['>=','>','=','==']:
+                minval = max(minval,val) if minval is not None else val
+            if oper in ['<=','<','=','==']:
+                maxval = min(maxval,val) if maxval is not None else val
+            if oper == '...':
+                minval = max(minval,val[0]) if minval is not None else val[0]
+                maxval = min(maxval,val[1]) if maxval is not None else val[1]
+        return minval, maxval
+    @classmethod
+    def frange(cls,fltrs,default_start,default_end):
+        minval, maxval = cls.calc_filter_minmax(fltrs)
+        start = (minval if minval is not None else default_start )
+        end = 1+(maxval if maxval is not None else default_end )
         return range(start,end)
+
     @classmethod
     def convert_unit(cls,converter,data_series):
         if isinstance(converter, numbers.Real):
@@ -351,7 +377,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
         ax.set_xticks([0,6,12,18,24]);
         ax.set_xticks([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],minor=True);
-        begin, end = self.filters['hour'][0:2]
+        begin, end = self.get_filter_minmax('hour')
         begin = 0 if begin is None else begin
         end = 24 if end is None else end
         ax.set_xlim(begin,end)
@@ -609,7 +635,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
@@ -650,7 +676,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         if ylim is not None:
@@ -699,7 +725,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         if ylim is not None:
@@ -731,7 +757,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
@@ -759,7 +785,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
@@ -787,7 +813,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
@@ -837,7 +863,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
@@ -870,7 +896,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
@@ -914,7 +940,7 @@ class MetarPlotter(object):
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
-        begin, end = self.filters['month'][0:2]
+        begin, end = self.get_filter_minmax('month')
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
@@ -1509,7 +1535,7 @@ class MetarPlotter(object):
             print(msg+'...',end='\r',flush=True)
             self.reset_filters()
             self.redo_filters(basefilters)
-            self.filter_month(eq=month)
+            self.filter_month('=',month)
 
             dirname_figs = os.path.join(self.filepaths['output'],self.station,'fig')
             if not os.path.exists(dirname_figs):
