@@ -192,10 +192,9 @@ class MetarPlotter(object):
 
     @classmethod
     def prepare_maps(cls):
-        global cartopy, xr, rasterio
+        global cartopy, xr
         import cartopy
         import xarray as xr
-        import rasterio
     def load_map_raster(self,name):
         tif_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['tif','tiff'])
         da = xr.open_rasterio(tif_path)
@@ -228,6 +227,8 @@ class MetarPlotter(object):
                 _log.warning('De kaartachtergrond-bestanden konden niet worden gevonden. '
                     'Kaart wordt geplot zonder achtergrond.\n'
                     'Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
+            except Exception as err:
+                _log.error(repr(err)+'\nKon achtergrond kaart niet weergeven..."',exc_info=err)
 
             try:
                 hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
@@ -245,6 +246,8 @@ class MetarPlotter(object):
                 _log.warning('De Landgrens-bestanden konden niet worden gevonden. '
                     'Kaart wordt geplot zonder grenzen.\n'
                     'Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
+            except Exception as err:
+                _log.error(repr(err)+'\nKon landgrenzen niet weergeven op kaart..."',exc_info=err)
 
     def categorize_wind_dirs(self):
         catborders = [0,11.25,33.75,56.25,78.75,101.25,123.75,146.25,168.75,
@@ -1369,7 +1372,12 @@ class MetarPlotter(object):
         if savefig is not None:
             shutil.copyfile(self.filepaths['logo'],savefig)
     def plotset_map(self,stations=None,zoom=1,clat=None,clon=None,figsize=None,savefig=None):
-        self.prepare_maps()
+        try:
+            self.prepare_maps()
+        except ModuleNotFoundError as err:
+            _log.error(repr(err)+'\nInstalleer opnieuw de packages via "00. Instaleren & Introductie.ipynb"',exc_info=err)
+            _log.info('Kaart niet geplot...')
+            return
         if stations is None:
             stations = self.stations_on_map
         if self.station not in stations and self.station is not None:
