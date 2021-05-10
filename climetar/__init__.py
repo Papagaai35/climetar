@@ -28,9 +28,9 @@ if os.path.isfile(metarfile):
 from .quantities import *
 from .metar import *
 
+from .stationrepo import StationRepo
 from .fetchmetar import MetarFetcher
 
-from .stationrepo import StationRepo
 from .metartheme import MetarTheme
 from .metarfile import MetarFiles, analyse_files, format_period
 from .planetary import Astro

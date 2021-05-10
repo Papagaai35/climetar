@@ -12,13 +12,12 @@ import urllib
 
 import pandas as pd
 
+from . import StationRepo
 
 class MetarFetcher(object):
-    stations_json_file = './resources/stations.json'
 
-    def __init__(self,stations,start,end,stations_json_file=None):
-        self.repo = {}
-        self.load_station_data(stations_json_file)
+    def __init__(self,stations,start,end):
+        self.repo = StationRepo()
 
         self.stations = self.clean_input_stations(stations)
         self.unknown_stations = None
@@ -49,11 +48,6 @@ class MetarFetcher(object):
             raise ValueError("Stations moet een list, tuple, dict of string zijn, bevattende de ICAO afkoringen van de velden")
         return stations
 
-    def load_station_data(self,stations_json_file=None):
-        file = stations_json_file or self.stations_json_file
-        with open(file,'r') as fh:
-            self.repo = json.load(fh)
-
     def all_stations_exsist(self,force=True):
         if not force and isinstance(self.unknown_stations,list):
             return len(self.unknown_stations)==0
@@ -61,7 +55,7 @@ class MetarFetcher(object):
             self.unknown_stations = []
 
         for s in self.stations:
-            if s not in self.repo['stations']:
+            if s not in self.repo:
                 self.unknown_stations.append(s)
         _log.debug("Stations not found: %s"%(",".join(self.unknown_stations)))
         return len(self.unknown_stations)==0
@@ -81,7 +75,7 @@ class MetarFetcher(object):
         for s,alts in alternatives.items():
             sstr = s
             for alt_s,simscore in alts.items():
-                alt_obj = self.repo['stations'][alt_s]
+                alt_abbr, alt_obj = self.repo.get_station(alt_s)
                 print(f"{sstr:5s} {alt_s:5s} {alt_obj['name']:30.30s} {alt_obj['timezone']}")
                 sstr = ""
             print("-"*70)
@@ -92,7 +86,7 @@ class MetarFetcher(object):
         for s in self.unknown_stations:
             alike_stations = list(reversed(sorted(
             [(alt_s,SequenceMatcher(None, s, alt_s).ratio())
-                for alt_s in self.repo['stations'].keys()],
+                for alt_s in list(self.repo.stations.keys())],
             key=lambda item: item[1])))
             alternatives[s] = dict(alike_stations[:num])
         return alternatives
