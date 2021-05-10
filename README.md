@@ -12,7 +12,7 @@ Ondanks dat de ontwikkeling van CliMETAR in een vergevorderd statium is, moeten 
 CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab.
 
 1. Ga naar [jupyter.mindef.nl](https://jupyter.mindef.nl/) (via mulan), en log in.
-2. Kies voor de **Geospatial**-omgeving, en klik op de 'Aanmaken'-knop onderaan de pagina.
+2. Kies voor de **Machine Learning**-omgeving, en klik op de 'Aanmaken'-knop onderaan de pagina.
 3. Op het scherm dat verschijnt, kies Terminal
 4. Tik de volgende opdracht in, en druk op <b>Enter</b>:
 ```
