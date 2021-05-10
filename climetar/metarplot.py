@@ -218,10 +218,10 @@ class MetarPlotter(object):
 
     @classmethod
     def prepare_maps(cls):
-        global cartopy, xr
+        global cartopy
         import cartopy
-        import xarray as xr
     def load_map_raster(self,name):
+        raise ValueError('xarray is currently not available....')
         tif_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['tif','tiff'])
         da = xr.open_rasterio(tif_path)
         da = da.transpose('y','x','band')
@@ -230,8 +230,9 @@ class MetarPlotter(object):
         shp_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['shp'])
         return cartopy.io.shapereader.Reader(shp_path)
     def map_stock_img(self,ax,zoom=.99,transform=None):
-            trans = transform if transform is not None else cartopy.crs.PlateCarree()
-            img_extent = np.array(ax.get_extent(crs=trans))+[-1/zoom,1/zoom,-1/zoom,1/zoom]
+        trans = transform if transform is not None else cartopy.crs.PlateCarree()
+        img_extent = np.array(ax.get_extent(crs=trans))+[-1/zoom,1/zoom,-1/zoom,1/zoom]
+        if False:
             try:
                 hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'NE1_HR_LC_SR_W_DR',['tif','tiff','zip']))
                 if zoom < 1 or not hires_available:
@@ -256,24 +257,24 @@ class MetarPlotter(object):
             except Exception as err:
                 _log.error(repr(err)+'\nKon achtergrond kaart niet weergeven..."',exc_info=err)
 
-            try:
-                hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
-                if zoom < 1 or not hires_available:
-                    shp = self.load_map_shape('ne_50m_admin_0_countries')
-                    _log.debug('Adding ne_50m_admin_0_countries to map')
-                else:
-                    shp = self.load_map_shape('ne_10m_admin_0_countries')
-                    _log.debug('Adding ne_10m_admin_0_countries to map')
-                sf = cartopy.feature.ShapelyFeature(shp.geometries(),trans,
-                    facecolor='none',edgecolor='#666666',linewidth=.75,zorder=-1)
-                ax.add_feature(sf,zorder=-1)
-            except ValueError:
-                _log.tryexcept(repr(e),exc_info=e)
-                _log.warning('De Landgrens-bestanden konden niet worden gevonden. '
-                    'Kaart wordt geplot zonder grenzen.\n'
-                    'Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
-            except Exception as err:
-                _log.error(repr(err)+'\nKon landgrenzen niet weergeven op kaart..."',exc_info=err)
+        try:
+            hires_available = bool(MapPlotHelper.search_files(self.filepaths['natural_earth'],'ne_10m_admin_0_countries',['shp','zip']))
+            if zoom < 1 or not hires_available:
+                shp = self.load_map_shape('ne_50m_admin_0_countries')
+                _log.debug('Adding ne_50m_admin_0_countries to map')
+            else:
+                shp = self.load_map_shape('ne_10m_admin_0_countries')
+                _log.debug('Adding ne_10m_admin_0_countries to map')
+            sf = cartopy.feature.ShapelyFeature(shp.geometries(),trans,
+                facecolor='none',edgecolor='#666666',linewidth=.75,zorder=-1)
+            ax.add_feature(sf,zorder=-1)
+        except ValueError:
+            _log.tryexcept(repr(e),exc_info=e)
+            _log.warning('De Landgrens-bestanden konden niet worden gevonden. '
+                'Kaart wordt geplot zonder grenzen.\n'
+                'Zie 00. Instaleren & Introductie, 3.1 Natural Earth, voor een oplossing')
+        except Exception as err:
+            _log.error(repr(err)+'\nKon landgrenzen niet weergeven op kaart..."',exc_info=err)
 
     def categorize_wind_dirs(self):
         catborders = [0,11.25,33.75,56.25,78.75,101.25,123.75,146.25,168.75,

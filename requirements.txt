@@ -2,8 +2,8 @@
 # $ conda create --name <env> --file <this file>
 # platform: linux-64
 cartopy>=0.17.0
-matplotlib>=3.1.1
-numpy>=1.17.4
-pandas>=0.25.3
+#matplotlib>=3.1.1
+#numpy>=1.17.4
+#pandas>=0.25.3
 #rasterio>=1.0.21
-xarray>=0.14.1
+#xarray>=0.14.1
