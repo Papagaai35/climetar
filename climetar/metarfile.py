@@ -12,7 +12,7 @@ import itertools
 import pandas as pd
 import numpy as np
 
-from . import metar, StationRepo
+from . import metar
 
 def analyse_files(glob_pattern,rerun_parsed=False,output_folder=None):
     if isinstance(glob_pattern,list):
@@ -73,34 +73,6 @@ class MetarFiles(object):
     def __init__(self,datastore=None):
         self.datastore = datastore if datastore is not None else self.default_datastore
         self.exported_files = set()
-        self.repo = StationRepo()
-
-    def _index_init(self):
-        for filepath in glob.iglob(os.path.join(self.datastore,'*','*.metar')):
-            if not os.path.isfile(filepath):
-                continue
-            filedir, filename = os.path.split(filepath)
-            filebase, fileext = os.path.splittext(filename)
-            filedirbase = os.path.basename(filedir)
-
-            station,timespan = filedirbase.strip(), filebase.strip()
-            if station in self.repo:
-                if station not in self.index:
-                    self.index[station] = {}
-                if timespan.isnumeric() and len(timespan)==4:
-                    period_from, period_to = (timespan+'-01-01',timespan+'-12-31')
-                    period_from, period_to = datetime.datetime.strptime(timespan+'-01-01',' %Y-%m-%d'), datetime.datetime.strptime(timespan+'-12-31',' %Y-%m-%d')
-                    self.index[station][int(timespan)] = period_from, period_to
-                elif 'doy' in timespan:
-                    # Partial 2011.doy001-356.metar
-                    year, period = timespan.split(".")
-                    period_from, period_to = period.split("-")
-                    period_from, period_to = year+'-'+re.sub('\D','',period_from), year+'-'+re.sub('\D','',period_to)
-                    period_from, period_to = datetime.datetime.strptime(period_from,' %Y-%j'), datetime.datetime.strptime(period_to,' %Y-%j')
-                    if year in self.index[station]:
-                        self.index[station][year] = min([period_from,self.index[station][year][0]]), max([period_to,self.index[station][year][1]])
-                    else:
-                        self.index[station][year] = period_from, period_to
 
     def import_chunck(self,indf,chuncknr=0):
         metar_parsed = []

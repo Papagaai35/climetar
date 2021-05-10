@@ -236,7 +236,7 @@ class Astro(object):
             sr = StationRepo()
             s,sd = sr.get_station(station)
             self.station_data = sd
-            self.lon, self.lat = sd['latitude'], sd['longitude']
+            self.lat, self.lon = sd['latitude'], sd['longitude']
             self.tz = tz if tz is not None else sd['timezone']
         if self.lon is None and self.lat is None:
             raise ValueError('Voor deze locatie zijn geen longitude en latitude bekend...')

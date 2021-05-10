@@ -5,35 +5,32 @@ import json
 import os
 
 class StationRepo(object):
-    default_repo = './resources/stations.json'
-    def __init__(self,json_or_file=None):
+    default_repo = './resources/stations.geojson'
+    def __init__(self,geojsonfile=None):
         self.repo = {}
-        self.load_jsonstr_or_file(json_or_file if json_or_file is not None else self.default_repo)
-        self.stations = self.repo.get("stations",{})
-        self.networks = self.repo.get("networks",{})
-        self.aliases = self.repo.get("aliases",{})
+        self.stations = {}
+        self.networks = {}
+        self.aliases = {}
+        geojsonfile = geojsonfile if geojsonfile is not None else self.default_repo
+        if geojsonfile:
+            self.load(geojsonfile)
 
-    def load_jsonstr_or_file(self,json_or_file):
-        if json_or_file is not None:
-            repo = None
-            fromfile = False
-            try:
-                repo = json.loads(json_or_file)
-            except:
-                try:
-                    if os.path.exists(json_or_file) and os.path.isfile(json_or_file):
-                        with open(json_or_file,'r') as fh:
-                            repo = json.load(fh)
-                            fromfile = True
-                except:
-                    pass
-            if repo is not None:
-                self.repo = repo
-                _log.debug('Loaded StationRepo from %s'%(json_or_file if fromfile else 'str'))
-            else:
-                raise ValueError('Invalid repo passed:\n%s'%json_or_file)
-
-    def get_station(self,stationcode):
+    def load(self,geojsonfile):
+        repo = None
+        if os.path.exists(geojsonfile) and os.path.isfile(geojsonfile):
+            with open(geojsonfile,'r') as fh:
+                repo = json.load(fh)
+                _log.debug('Loaded StationRepo from %s'%geojsonfile)
+        if repo is None:
+            raise ValueError('Invalid repo passed')
+        self.load_obj(repo)
+    def load_obj(self,repoobj):
+        self.repo = repoobj
+        self.stations = {f['id']:f for f in repoobj["features"] if f['properties']['kind']=='station'}
+        self.networks = {f['id']:f for f in repoobj["features"] if f['properties']['kind']=='network'}
+        self.aliases = {icao:f['id'] for f in repoobj["features"] if f['properties']['kind']=='station' for icao in f['properties']['aliasses'] if icao!=f['id']}
+    
+    def get_station_geo(self,stationcode):
         if stationcode in self.stations:
             return stationcode, self.stations[stationcode]
         elif stationcode in self.aliases:
@@ -41,6 +38,19 @@ class StationRepo(object):
             return alias_stationcode, self.stations[alias_stationcode]
         else:
             raise KeyError(f"Station '{stationcode}' could not be found")
+        
+    def get_station(self,stationcode):
+        abbr, station_data = self.get_station_geo(stationcode)
+        return abbr, {
+            "abbr": station_data['id'],
+            "icao": station_data['properties']['icao'],
+            "network": station_data['properties']['network'],
+            "name": station_data['properties']['name'],
+            "timezone": station_data['properties']['timezone'],
+            "latitude": station_data['geometry']['coordinates'][1],
+            "longitude": station_data['geometry']['coordinates'][0],
+            "elevation": station_data['properties']['elevation'],
+        }
 
     def __contains__(self,item):
         return item in self.stations or item in self.aliases

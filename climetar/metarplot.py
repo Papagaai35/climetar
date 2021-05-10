@@ -26,7 +26,7 @@ from . import metar, quantities, MetarTheme, StationRepo, Astro
 class MetarPlotter(object):
     def __init__(self,**settings):
         self.theme = MetarTheme(settings.get('theme'))
-        self.station_repo = StationRepo(settings.get('stations_json'))
+        self.station_repo = StationRepo()
         self.style = settings.get('style','./resources/climetar.mplstyle')
         if os.path.isfile(self.style):
             plt.style.use(self.style)
