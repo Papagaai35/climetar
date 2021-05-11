@@ -1106,7 +1106,7 @@ class MetarPlotter(object):
         fig = plt.figure(figsize=(6.3,2.1))
         width = .80
         ax = fig.add_axes([.05,.1,width,.8])
-        self.plot_ym_cycle_wbgt_simplified(ax)
+        self.plot_ym_cycle_wbgt_simplified(ax,limit_theme=limit_theme)
 
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_ci('patch.wbgt')
