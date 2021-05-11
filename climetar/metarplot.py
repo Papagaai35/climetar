@@ -1386,9 +1386,9 @@ class MetarPlotter(object):
         print(msg+'...',end='\r',flush=True)
         self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
 
-        #msg += "Map "
-        #print(msg+'...',end='\r',flush=True)
-        #self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
+        msg += "Map "
+        print(msg+'...',end='\r',flush=True)
+        self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
 
         msg += "Klaar!"
         print(msg,end='\r',flush=True)
@@ -1399,7 +1399,7 @@ class MetarPlotter(object):
     def plotset_logo(self,savefig=None):
         if savefig is not None:
             shutil.copyfile(self.filepaths['logo'],savefig)
-    def plotset_map(self,stations=None,zoom=1,clat=None,clon=None,figsize=None,savefig=None):
+    def plotset_map(self,stations=None,zoom=1,clat=None,clon=None,center_station=None,figsize=None,savefig=None):
         try:
             self.prepare_maps()
         except ModuleNotFoundError as err:
@@ -1410,34 +1410,65 @@ class MetarPlotter(object):
             stations = self.stations_on_map
         if self.station not in stations and self.station is not None:
             stations = [self.station] + stations
+        station_list = []
+        for s in stations:
+            if s not in self.station_repo and s in self.station_repo.networks:
+                station_list += self.station_repo.get_station_codes_from_network(s)
+            else:
+                station_list.append(s)
         if clat is None or clon is None:
-            station, station_data = self.station_repo.get_station(stations[0])
-            clat,clon = station_data['latitude'], station_data['longitude']
-        extent = [clat-(15/zoom),clat+(15/zoom),clon-(10/zoom),clon+(10/zoom)]
+            if center_station is not None:
+                station, station_data = self.station_repo.get_station(center_station)
+                clat,clon = station_data['latitude'], station_data['longitude']
+            else:
+                lats, lons = [], []
+                for s in station_list:
+                    s, sd = self.station_repo.get_station(s)
+                    lats.append(sd['latitude'])
+                    lons.append(sd['longitude'])
+                clat, clon = (np.min(lats)+np.max(lats))/2, (np.min(lons)+np.max(lons))/2
+        if zoom=='auto':
+            if len(station_list)>=2:
+                lats, lons = [], []
+                for s in station_list:
+                    s, sd = self.station_repo.get_station(s)
+                    lats.append(sd['latitude'])
+                    lons.append(sd['longitude'])
+                zoom = 0.95*np.min([
+                    10/np.abs(clat-np.min(lats)),
+                    10/np.abs(clat-np.max(lats)),
+                    15/np.abs(clon-np.min(lons)),
+                    15/np.abs(clon-np.max(lons))])
+                zoom = max(min(zoom,5),.2)
+            else:
+                zoom = 1
+            print(zoom)
+        extent = [clon-(15/zoom),clon+(15/zoom),clat-(10/zoom),clat+(10/zoom)]
         proj = cartopy.crs.NearsidePerspective(
-            central_longitude=clat,
-            central_latitude=clon,
+            central_longitude=clon,
+            central_latitude=clat,
             satellite_height=35785831
         )
         trans = cartopy.crs.PlateCarree()
 
         fig,ax = plt.subplots(1,1,figsize=figsize,subplot_kw={'projection':proj})
 
-        for s in stations:
+        for s in station_list:
             station, station_data = self.station_repo.get_station(s)
             lat,lon = station_data['latitude'], station_data['longitude']
-            if extent[0] <= lat <= extent[1] and extent[2] <= lon <= extent[3]:
+            station_text = station_data.get('icao',station)
+            if extent[0] <= lon <= extent[1] and extent[2] <= lat <= extent[3]:
                 plane_str = """m 37.398882,331.5553 195.564518,-53.33707 81.92539,81.92539 c 18.40599,18.40599 58.40702,30.50459 72.90271,27.64788 2.85671,-14.49569 -9.24189,-54.49672 -27.64788,-72.90271 L 278.21823,232.9634 331.5553,37.39888 305.29335,11.13693 216.40296,171.14812 133.86945,88.61462 142.35474,29.21765 113.13708,0 73.058272,73.05827 0,113.13708 l 29.217652,29.21766 59.39697,-8.48529 82.533498,82.53351 -160.011188,88.89039 26.26195,26.26195"""
                 plane_path = parse_path(plane_str)
                 plane_path.vertices -= plane_path.vertices.mean(axis=0)
-                ax.scatter(lat,lon,transform=trans,
+                ax.scatter(lon,lat,transform=trans,
                            s=36*2,marker=plane_path,c='k',zorder=2)
-                ax.annotate(station_data['icao'],xy=(lat,lon),xytext=(lat+(.4/zoom),lon+(.3/zoom)),
+                ax.annotate(station_text,xy=(lon,lat),xytext=(lon+(.4/zoom),lat+(.3/zoom)),
                             xycoords=trans._as_mpl_transform(ax),zorder=2)
             else:
-                latr, lonr, clatr, clonr = np.deg2rad(np.array([lat,lon,clat,clon]))
-                x = np.cos(latr)*np.sin(clonr-lonr)
-                y = np.cos(clatr)*np.sin(latr)-np.sin(clatr)*np.cos(latr)*np.cos(clonr-lonr)
+                lonr, latr, clonr, clatr = np.deg2rad(np.array([lon,lat,clon,clat]))
+                x = np.cos(lonr)*np.sin(clatr-latr)
+                y = np.cos(clonr)*np.sin(lonr)-np.sin(clonr)*np.cos(lonr)*np.cos(clatr-latr)
                 heading = np.arctan2(y,x)-.5*np.pi
                 heading_deg = np.rad2deg(heading)%360
                 if 45<=heading_deg<=135:
@@ -1456,7 +1487,7 @@ class MetarPlotter(object):
                 ax.scatter(x,y,transform=ax.transAxes,
                            s=36*2,c='k',
                            marker=(3,0,(heading_deg-90)%360),zorder=2)
-                ax.annotate(station_data['icao'],
+                ax.annotate(station_text,
                             xy=(x,y),
                             xytext=(x+(.01 if x<.5 else -.01),
                                     y+(.01 if y<.5 else -.01)),

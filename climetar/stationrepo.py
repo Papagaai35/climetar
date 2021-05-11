@@ -30,6 +30,9 @@ class StationRepo(object):
         self.networks = {f['id']:f for f in repoobj["features"] if f['properties']['kind']=='network'}
         self.aliases = {icao:f['id'] for f in repoobj["features"] if f['properties']['kind']=='station' for icao in f['properties']['aliasses'] if icao!=f['id']}
     
+    def get_station_codes_from_network(self,networkcode):
+        return [code for code,sgeo in self.stations.items() if sgeo['properties']['network']==networkcode]
+    
     def get_station_geo(self,stationcode):
         if stationcode in self.stations:
             return stationcode, self.stations[stationcode]
