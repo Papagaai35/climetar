@@ -687,10 +687,10 @@ class MetarPlotter(object):
                         np.ceil(data[.99].max()/5)*5)
         ax.set_xlim(begin-.5,end+.5)
         ax.set_title('Wind Chill [%s]'%unit)
-    def plot_ym_cycle_wbgt_simplified(self,ax,unit='°C',ylim=None):
+    def plot_ym_cycle_wbgt_simplified(self,ax,unit='°C',ylim=None,limit_theme='limits.wbgt'):
         style = self.theme.get_ci('wbgt')
-        limit_styles = self.theme.get_set('limits.wbgt')
-        limit_line_styles = self.theme.get_set('line.limits.wbgt')
+        limit_styles = self.theme.get_set(limit_theme)
+        limit_line_styles = self.theme.get_set('line.'+limit_theme)
         quantity = quantities.Temperature
 
         for f1,ls in limit_styles.items():
@@ -1102,7 +1102,7 @@ class MetarPlotter(object):
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
-    def plotset_ymwide_wbgt(self,savefig=None):
+    def plotset_ymwide_wbgt(self,savefig=None,limit_theme='limits.wbgt'):
         fig = plt.figure(figsize=(6.3,2.1))
         width = .80
         ax = fig.add_axes([.05,.1,width,.8])
@@ -1110,7 +1110,7 @@ class MetarPlotter(object):
 
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_ci('patch.wbgt')
-        limit_styles = self.theme.get_set('patch.limits.wbgt')
+        limit_styles = self.theme.get_set('patch.'+limit_theme)
 
         limit_legend = []
         ymin, ymax = ax.get_ylim()
@@ -1355,6 +1355,7 @@ class MetarPlotter(object):
         self.plotset_ymwide_tmin_tmax(savefig=os.path.join(dirname_figs,'Y_temp.png') if savefig else None)
         self.plotset_ymwide_wcet(savefig=os.path.join(dirname_figs,'Y_wcet.png') if savefig else None)
         self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'Y_wbgt.png') if savefig else None)
+        self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'Y_wbgt_flag.png') if savefig else None,limit_theme='limits.wbgt_flag')
 
         msg += "RH "
         print(msg+'...',end='\r',flush=True)
