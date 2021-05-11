@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib as mpl
 
 class MetarTheme(object):
-    default_theme = './resources/theme2_RHS.json'
+    default_theme = './resources/theme_RHS.json'
     def __init__(self,json_or_file=None):
         self.theme = {}
         self.load(json_or_file if json_or_file is not None else self.default_theme)

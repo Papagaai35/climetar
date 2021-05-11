@@ -1,84 +1,69 @@
 {
-    "daily_cycle_temp":{
-        "colors":[
-            "#000000",
-            "#d52b1eaa",
-            "#d52b1e77",
-            "#d52b1e44"
+    "facecolor":{
+        "default":"k",
+        "temp":"#d52b1e",
+        "tmax":"#d52b1e",
+        "tmin":"#01689b",
+        "dwpc":"#01689b",
+        "relh":"#a90061",
+        "wind":"#39870c",
+        "vism":"#42145f",
+        "ceiling":"#e17000",
+        "solar_noon":"k"
+    },
+    "facealpha":{
+        "default":"ff",
+        "limits":"99",
+        "confidence":[
+            "aa",
+            "77",
+            "44"
+        ],
+        "precipitation_codes":[
+            "ff",
+            "cc",
+            "80",
+            "40"
         ]
     },
-    "daily_cycle_dwpc":{
-        "colors":[
-            "#000000",
-            "#01689baa",
-            "#01689b77",
-            "#01689b44"
-        ]
+    "edgecolor":{
+        "default":"none",
+        "bar":{
+            "default":"k"
+        },
+        "patch":{
+            "default":"k"
+        },
+        "median":{
+            "default":"k",
+            "tmax":"#d52b1e",
+            "tmin":"#01689b"
+        }
     },
-    "daily_cycle_relh":{
-        "colors":[
-            "#000000",
-            "#a90061aa",
-            "#a9006177",
-            "#a9006144"
-        ]
+    "edgealpha":{
+        "default":"ff"
     },
-    "daily_cycle_wspd":{
-        "colors":[
-            "#000000",
-            "#39870caa",
-            "#39870c77",
-            "#39870c44"
-        ]
+    "linewidth":{
+        "default":1.0,
+        "bar":0.5,
+        "patch":{
+            "default":0.5,
+            "median":1.5
+        }
     },
-    "daily_cycle_vism":{
-        "colors":[
-            "#000000",
-            "#42145faa",
-            "#42145f77",
-            "#42145f44"
-        ]
-    },
-    "daily_cycle_ceiling":{
-        "colors":[
-            "#000000",
-            "#e17000aa",
-            "#e1700077",
-            "#e1700044"
-        ]
-    },
-    "wind_compass_dir_freq":{
-        "colors":"#39870c",
-        "edgecolor":"k"
-    },
-    "wind_compass_spd":{
-        "colors":[
-            "#000000",
-            "#39870caa",
-            "#39870c77",
-            "#39870c44"
-        ]
-    },
-    "frequency_gust":{
-        "colors":"#39870c",
-        "edgecolor":"k"
-    },
-    "frequency_cloud_type":{
-        "colors":{
+    "colorsets":{
+        "cloud":{
             "SKC":"#007bc7",
             "NCD":"#007bc7",
             "CLR":"#007bc7",
-            "NSC":"#8fcae7",
+            "NSC":"#007bc7",
             "FEW":"#8fcae7",
             "SCT":"#ddeff8",
             "BKN":"#eef7fb",
             "OVC":"#b4b4b4",
             "VV":"#696969"
         },
-        "edgecolor":"k"
-    },
-    "frequency_color":{
-        "colors":{
+        "color":{
             "BLU+":"#8fcae7",
             "BLU":"#007bc7",
             "WHT":"#ffffff",
@@ -89,10 +74,27 @@
             "AMB":"#e17000",
             "RED":"#d52b1e"
         },
-        "edgecolor":"k"
-    },
-    "frequency_percipitation":{
-        "colors":{
+        "solar":{
+            "night":"#42145fff",
+            "astronomical":"#a90061ff",
+            "nautical":"#d52b1eff",
+            "civil":"#e17000ff",
+            "day":"#f9e11eff"
+        },
+        "precipitation_codes":{
+            "__comment__":{
+                "RA":"Rain, Groen",
+                "DZ":"Drizzle, Mosgroen",
+                "SN":"Snow, Donkerblauw",
+                "IC":"Ice Crystals, Violet",
+                "PL":"Ice Pellets, Geel",
+                "GR":"Hail, Oranje",
+                "GS":"Graupel, Donkergeel",
+                "UP":"Unknown Precipitation, Grijs 6",
+                "FZRA":"Freezing Rain, Rood",
+                "FZDZ":"Freezing Drizzle, Robijnrood",
+                "FZFG":"Freezing Fog, Roze"
+            },
             "RA":"#39870c",
             "DZ":"#777c00",
             "SN":"#01689b",
@@ -105,23 +107,35 @@
             "FZDZ":"#ca005d",
             "FZFG":"#f092cd"
         },
-        "edgecolor":"k",
-        "__comment__":{
-            "RA":"Rain, Groen",
-            "DZ":"Drizzle, Mosgroen",
-            "SN":"Snow, Donkerblauw",
-            "IC":"Ice Crystals, Violet",
-            "PL":"Ice Pellets, Geel",
-            "GR":"Hail, Oranje",
-            "GS":"Graupel, Donkergeel",
-            "UP":"Unknown Precipitation, Grijs 6",
-            "FZRA":"Freezing Rain, Rood",
-            "FZDZ":"Freezing Drizzle, Robijnrood",
-            "FZFG":"Freezing Fog, Roze"
-        }
-    },
-    "frequency_sigwx":{
-        "colors":{
+        "precipitation_aggr":{
+            "Rain":"#39870c",
+            "Snow":"#01689b",
+            "Hail":"#ffb612",
+            "RainSnow":"#76d2b6",
+            "RainHail":"#94710a",
+            "SnowHail":"#42145f",
+            "RainSnowHail":"#ca005d",
+            "Unknown":"#696969"
+        },
+        "sigwx":{
+            "__comment__":{
+                "TS":"Thunderstorm, Paars",
+                "FZ":"Freezing, Rood",
+                "SH":"Showers, Groen",
+                "FG":"Fog, Donkergeel",
+                "VA":"Volcanic Ash, Donkerbruin",
+                "BR":"Mist, Geel",
+                "HZ":"Haze, Geel (dekking 60%)",
+                "DU":"Dust, Mosgroen (dekking 60%)",
+                "FU":"Smoke, Donkerbruin (dekking 60%)",
+                "SA":"Sand, Bruin (dekking 60%)",
+                "PY":"Spray, Mintgroen",
+                "SQ":"Squall, Hemelblauw",
+                "PO":"Light Dust/Sand Whrils, Mosgroen (dekking 60%)",
+                "DS":"Duststorm, Mosgroen",
+                "SS":"Sandstorm, Bruin",
+                "FC":"Funnel Cloud, Violet"
+            },
             "TS":"#42145fff",
             "FZ":"#d52b1eff",
             "SH":"#39870cff",
@@ -139,82 +153,37 @@
             "SS":"#94710aff",
             "FC":"#a90061ff"
         },
-        "edgecolor":"k",
-        "__comment__":{
-            "TS":"Thunderstorm, Paars",
-            "FZ":"Freezing, Rood",
-            "SH":"Showers, Groen",
-            "FG":"Fog, Donkergeel",
-            "VA":"Volcanic Ash, Donkerbruin",
-            "BR":"Mist, Geel",
-            "HZ":"Haze, Geel (dekking 60%)",
-            "DU":"Dust, Mosgroen (dekking 60%)",
-            "FU":"Smoke, Donkerbruin (dekking 60%)",
-            "SA":"Sand, Bruin (dekking 60%)",
-            "PY":"Spray, Mintgroen",
-            "SQ":"Squall, Hemelblauw",
-            "PO":"Light Dust/Sand Whrils, Mosgroen (dekking 60%)",
-            "DS":"Duststorm, Mosgroen",
-            "SS":"Sandstorm, Bruin",
-            "FC":"Funnel Cloud, Violet"
-        }
-    },
-    "monthly_cycle_tmin_tmax":{
-        "colors":{
-            "tmax": ["#d52b1eff","#d52b1eaa","#d52b1e77","#d52b1e44"],
-            "tmin": ["#01689bff","#01689baa","#01689b77","#01689b44"]
-        }
-    },
-    "monthly_cycle_wcet":{
-        "colors":{
-            "data": "k",
-            "limits": {
-                "-150": "#2a77b9",
-                "-55": "#ad6a00",
-                "-44": "#fde4cf",
-                "-28": "#a1b6dd",
-                "-9": "#83aaa1",
-                "100": "#ffffff00"
-            }
-        }
-    },
-    "monthly_cycle_wbgt":{
-        "colors":{
-            "data": "k",
-            "limits": {
-                "-150":"#8fcae7",
+        "limits": {
+            "wcet":{
+                "-300":"#2a77b9",
+                "-55":"#ad6a00",
+                "-44":"#fde4cf",
+                "-28":"#a1b6dd",
+                "-9":"#83aaa1",
+                "300":"#ffffff00"
+            },
+            "wbgt_flag":{
+                "-300":"#8fcae7",
                 "25":"#39870c",
                 "27":"#ffffff",
                 "29":"#f9e11e",
                 "31":"#d52b1e",
                 "32":"k",
-                "100":"k"
+                "300":"k"
+            },
+            "wbgt":{
+                "-300":"#8fcae7",
+                "18": "#79d030",
+                "20": "#fff600",
+                "22": "#fdca0c",
+                "24": "#ff8d00",
+                "26": "#ff6600",
+                "28": "#ff0000",
+                "30": "#f316c2",
+                "32": "#b40957",
+                "34": "k",
+                "300":"k"
             }
-        },
-        "edgecolor":"k"
-    },
-    "monthly_cycle_relh":{
-        "colors":[
-            "#000000",
-            "#a90061aa",
-            "#a9006177",
-            "#a9006144"
-        ]
-    },
-    "monthly_cycle_vism":{
-        "colors":[
-            "#000000",
-            "#42145faa",
-            "#42145f77",
-            "#42145f44"
-        ]
-    },
-    "monthly_cycle_ceiling":{
-        "colors":[
-            "#000000",
-            "#e17000aa",
-            "#e1700077",
-            "#e1700044"
-        ]
+        }
     }
 }
