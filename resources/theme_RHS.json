@@ -108,13 +108,14 @@
             "FZFG":"#f092cd"
         },
         "precipitation_aggr":{
+            "Freezing": "#d52b1e",
             "Rain":"#39870c",
             "Snow":"#01689b",
             "Hail":"#ffb612",
             "RainSnow":"#76d2b6",
             "RainHail":"#94710a",
             "SnowHail":"#42145f",
-            "RainSnowHail":"#ca005d",
+            "RainSnowHail":"#a90061",
             "Unknown":"#696969"
         },
         "sigwx":{

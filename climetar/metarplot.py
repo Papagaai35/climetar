@@ -822,7 +822,9 @@ class MetarPlotter(object):
         ax.set_title('Cloud base [%s]'%unit)
     def plot_ym_precipdays(self,ax):
         style = self.theme.get_set("bar.precipitation_aggr")
-        preciptypes = {'Ra':['RA','DZ'],
+        preciptypes = {
+               'Fz':['FZRA','FZDZ'],
+               'Ra':['RA','DZ'],
                'Sn':['SN','IC'],
                'Gr':['PL','GR','GS'],
                'Up':['UP']}
@@ -839,15 +841,16 @@ class MetarPlotter(object):
             {'ptype_'+cat:any for cat in preciptypes}).reset_index()
         data['time'] = pd.to_datetime(data.time,dayfirst=True)
         data2 = data.loc[:,['time']]
-
-        data2['RainSnowHail'] = (~data.ptype_Ra & data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
-        data2['Snow'] = (~data.ptype_Ra & data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
-        data2['RainSnow'] = (data.ptype_Ra & data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
-        data2['Rain'] = (data.ptype_Ra & ~data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
-        data2['RainHail'] = (data.ptype_Ra & ~data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
-        data2['Hail'] = (~data.ptype_Ra & ~data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
-        data2['SnowHail'] = (~data.ptype_Ra & data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
-        data2['Unknown'] = (data.ptype_Up).astype(int)
+        
+        data2['Freezing'] = (data.ptype_Fz).astype(int)
+        data2['RainSnowHail'] = (~data.ptype_Fz & ~data.ptype_Ra & data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
+        data2['Snow'] = (~data.ptype_Fz & ~data.ptype_Ra & data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
+        data2['RainSnow'] = (~data.ptype_Fz & data.ptype_Ra & data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
+        data2['Rain'] = (~data.ptype_Fz & data.ptype_Ra & ~data.ptype_Sn & ~data.ptype_Gr & ~data.ptype_Up).astype(int)
+        data2['RainHail'] = (~data.ptype_Fz & data.ptype_Ra & ~data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
+        data2['Hail'] = (~data.ptype_Fz & ~data.ptype_Ra & ~data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
+        data2['SnowHail'] = (~data.ptype_Fz & ~data.ptype_Ra & data.ptype_Sn & data.ptype_Gr & ~data.ptype_Up).astype(int)
+        data2['Unknown'] = (~data.ptype_Fz & data.ptype_Up).astype(int)
         data3 = data2.groupby([data2.time.dt.year,data2.time.dt.month]).sum().unstack().mean().unstack().T
 
         bottom = data3.cumsum(axis=1).shift(1,axis=1).fillna(0)
@@ -869,7 +872,7 @@ class MetarPlotter(object):
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,31)
-        ax.set_title('Precipitation')
+        ax.set_title('Days with Precipitation')
     def plot_ym_cycle_cloud_type(self,ax,freq_unit='%',legend=False):
         style = self.theme.get_set("bar.cloud")
         freq_quantity = quantities.Fraction
@@ -1229,6 +1232,7 @@ class MetarPlotter(object):
         ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
         style = self.theme.get_set("patch.precipitation_aggr")
         legends = [
+            mpl.patches.Patch(label='Freezing Rain\n(FZRA/FZDZ)', **style['Freezing'][0]),
             mpl.patches.Patch(label='Rain (RA/DZ)', **style['Rain'][0]),
             mpl.patches.Patch(label='Snow (SN/IC)', **style['Snow'][0]),
             mpl.patches.Patch(label='Hail (PL/GR/GS)', **style['Hail'][0]),
