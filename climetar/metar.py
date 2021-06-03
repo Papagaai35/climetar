@@ -38,6 +38,7 @@ class Metar(object):
             (?P<distc>[MP]?[\dO]+|[/M]+|[MP]?\d\d?/\d\d?|\d\d?\s+\d\d?/\d\d?)
             (?P<unit>SM|KM|M|U)
         ) \s+"""
+    _regexes['cavok2'] = r"""^ CAVOK \s+"""
     _regexes['rvrno'] = r"""^ RVRNO \s+"""
     _regexes['rvr'] = r"""^
         (?P<rwyname>R(?:[\dO]{2}|[/M]{2})[CLR]{0,2})
@@ -294,7 +295,7 @@ class Metar(object):
             self.data[v] = Speed(self.elements.get(v,np.nan),wunit)
         self.handled.append('wind')
     def handle_vis(self):
-        if self.elements['cavok'] == 'CAVOK':
+        if self.elements['cavok'] == 'CAVOK' or self.elements['cavok2'] == 'CAVOK':
             self.data['cavok'] = True
             self.data['vis'] = Distance('P9999')
             self.data['visdir'] = Direction(None,'compass')
@@ -341,7 +342,7 @@ class Metar(object):
         self.data['sky_cover'] = ''
         self.data['sky_cover_index'] = -3
         self.data['sky'] = ''
-        if self.elements['cavok'] == 'CAVOK':
+        if self.elements['cavok'] == 'CAVOK' or self.elements['cavok2'] == 'CAVOK':
             self.data['cavok'] = True
             self.data['sky1_cover'] = 'NSC'
             self.data['sky1_cover_index'] = 0
