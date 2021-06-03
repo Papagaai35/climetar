@@ -61,11 +61,11 @@ class Quantity(object):
         unit = None if unit=='' else unit
         self.default_unit = None if default_unit=='' else default_unit
 
-        if self.default_unit=='' and self.storage_unit!='':
+        if self.no_default_unit() and not self.no_storage_unit():
             self.default_unit = self.storage_unit
-        if unit is None and self.default_unit!='':
+        if unit is None and not self.no_default_unit():
             unit = self.default_unit
-        if unit is None and self.storage_unit!='':
+        if unit is None and not self.no_default_unit():
             unit = self.storage_unit
         assert unit is not None and isinstance(unit,str)
 
@@ -80,7 +80,7 @@ class Quantity(object):
         return float(val)
     def __repr__(self):
         val, unit = self.value, self.storage_unit
-        if self.default_unit!=self.storage_unit:
+        if (not self.no_default_unit()) and self.default_unit!=self.storage_unit:
             val, unit = self.convert_to(val,self.default_unit), self.default_unit
         return "%s(%s%g %s)"%(
             self.__class__.__name__,
@@ -89,6 +89,11 @@ class Quantity(object):
             '[-]' if unit=='' else unit)
     def __getitem__(self,key):
         return self.convert_to(self.value+self.greater,key)
+    
+    def no_default_unit(self):
+        return self.default_unit is None or self.default_unit==''
+    def no_storage_unit(self):
+        return self.storage_unit is None or self.storage_unit==''
 
     @classmethod
     def convert_from(cls,value,unit):
@@ -144,7 +149,7 @@ class Quantity(object):
         for mfn in cls.unitmods:
             ignorelistlevel = []
             for v in cls.units.keys():
-                k = mfn(v)
+                k = mfn(str(v))
                 if k in ignorelistlevel and k in unittrans:
                     del unittrans[k]
                 elif k not in ignorelistall:
@@ -170,7 +175,7 @@ class Quantity(object):
             return cls.alias_units[unit]
         unittrans = cls.get_unit_translation_dict()
         for mfn in cls.unitmods:
-            k = mfn(unit)
+            k = mfn(str(unit))
             if k in unittrans:
                 return unittrans[k]
         raise KeyError('The unit %s is not defined in %s'%(unit,cls.__name__))
@@ -267,10 +272,11 @@ class Pressure(Quantity):
         'Pa': 0.01,
         'hPa': 1,
         'kPa': 10,
-        'inHg': 33.8639
+        'inHg': 33.8639,
+        '10thHg': 0.338639,
     }
     storage_unit = 'hPa'
-    alias_units = {'A': 'inHg', 'ALSTG': 'inHg', 'Q': 'hPa', 'QNH': 'hPa'}
+    alias_units = {'A': '10thHg', 'ALSTG': '10thHg', 'Q': 'hPa', 'QNH': 'hPa'}
 
 class Fraction(Quantity):
     units = {
