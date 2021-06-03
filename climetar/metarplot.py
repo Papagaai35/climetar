@@ -185,7 +185,7 @@ class MetarPlotter(object):
         minval, maxval = cls.calc_filter_minmax(fltrs)
         start = (minval if minval is not None else default_start )
         end = 1+(maxval if maxval is not None else default_end )
-        return range(start,end)
+        return range(int(start),int(end))
 
     @classmethod
     def convert_unit(cls,converter,data_series):
