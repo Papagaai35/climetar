@@ -3,6 +3,7 @@ _log = logging.getLogger(__name__)
 
 import copy
 import datetime
+import functools
 import glob
 import json
 import locale
@@ -98,7 +99,7 @@ class MetarPlotter(object):
 
     def reset_filters(self):
         self.pdf = self.df.copy(deep=True)
-        self.filters = dict([(k,[]) for k in ['year','month','day','hour','minutes_valid']])
+        self.filters = dict([(k,[]) for k in ['year','month','day','hour','minutes_valid','wvctp']])
         _log.debug("Resetting all filters")
     def redo_filters(self,filters):
         for k,fltrs in filters.items():
@@ -109,7 +110,18 @@ class MetarPlotter(object):
         for k,v in filters.items():
             if k not in self.filters:
                 raise ValueError('Kan niet filteren op "%s", kies een van year,month,day,hour,minutes_valid')
-            if '...' in v:
+            if k=='wvctp':
+                if v[0:2] in ['==','!=']:
+                    self.filter_wvctp(v[0:2],v[2:])
+                elif v[0] in '=':
+                    self.filter_wvctp(v[0],v[1:])
+                elif v in ['True',True,1,'1']:
+                    self.filter_wvctp('=',True)
+                elif v in ['False',False,0,'0']:
+                    self.filter_wvctp('=',False)
+                else:
+                    raise ValueError("Een wvctp filter (Wind, Visibility, Clouds, Temp, Pressure) kan alleen =, ==, !=, 0, 1, True of False bevatten")
+            elif '...' in v:
                 v1,v2 = v.split('...',2)
                 getattr(self,f'filter_{k}')('...',[float(v1),float(v2)])
             elif v[0:2] in ['==','>=','<=','!=']:
@@ -118,6 +130,27 @@ class MetarPlotter(object):
                 getattr(self,f'filter_{k}')(v[0],float(v[1:]))
             else:
                 raise ValueError("Filterwaarde moet beginnen met >, >=, <=, <, =, of !=  of een bereik aangeven [vanaf]...[tot]")
+    def filter_wvctp(self,operator='=',value=True):
+        if value in ['True',True,1,'1']:
+            value = True
+        if value in ['False',False,0,'0']:
+            value = False
+        metar_wvctp_not_ok_dict = {
+            'Wind': pd.isnull(self.pdf.wind_dir) & pd.isnull(self.pdf.wind_spd),
+            'Visibility': self.pdf.cavok | pd.isnull(self.pdf.vis),
+            'Clouds': self.pdf.cavok | pd.isnull(self.pdf.sky),
+            'Temp': pd.isnull(self.pdf.temp) | pd.isnull(self.pdf.dwpt),
+            'Pressure': pd.isnull(self.pdf.pres)
+        }
+        metar_wvctp_not_ok = functools.reduce(lambda a,b: a|b,list(metar_wvctp_not_ok_dict.values()))
+        if (operator in ['=','=='] and value is True) or (operator=='!=' and value is False):
+            self.pdf = self.pdf.loc[~metar_wvctp_not_ok]
+            self.store_filter('wvctp','=',True)
+        elif (operator in ['=','=='] and value is False) or (operator=='!=' and value is True):
+            self.pdf = self.pdf.loc[metar_wvctp_not_ok]
+            self.store_filter('wvctp','=',False)
+        else:
+            raise ValueError("Een wvctp (Wind, Visibility, Clouds, Temp, Pressure) filter kan alleen ")
                     
     def filter_series(self,series,operator,value):
         if operator=='...':
@@ -149,7 +182,6 @@ class MetarPlotter(object):
         self.filters[name].append((operator,value))
         filterstring = f'{value[0]:.3f}...{value[1]:.3f}' if operator=='...' and isinstance(value,(list,tuple)) and len(value)>=2 else f'{operator}{value:.3f}'
         _log.debug(f"Filtering data on {name} ({filterstring})")
-        
     def filter_year(self,operator,value):
         f = self.filter_series(self.pdf.time.dt.year,operator,value)
         self.store_filter('year',*f)
@@ -165,6 +197,7 @@ class MetarPlotter(object):
     def filter_minutes_valid(self,operator,value):
         f = self.filter_series(self.pdf.minutes_valid,operator,value)
         self.store_filter('minutes_valid',*f)
+    
     
     def get_filter_minmax(self,name):
         return self.calc_filter_minmax(self.filters[name])
@@ -423,8 +456,8 @@ class MetarPlotter(object):
         style = self.theme.get_ci("pres")
         quantity = quantities.Pressure
         unit = quantity.find_unit(unit)
-        self._plot_dh_cycle_hoursteps(ax,'spPa',title='Surface Pressure [%s]'%unit,
-            ylim=(quantities.Distance(950,'hPa')[unit],quantities.Distance(1050,'hPa')[unit]),
+        self._plot_dh_cycle_hoursteps(ax,'sp',title='Surface Pressure [%s]'%unit,
+            ylim=(quantity(950,'hPa')[unit],quantity(1050,'hPa')[unit]),
             unit=unit,quantity=quantity,style=style)
     def plot_frequency_gust(self,ax,unit='kt',freq_unit='%'):
         style = self.theme.get("bar.wind")[0]
