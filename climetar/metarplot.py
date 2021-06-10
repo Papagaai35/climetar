@@ -456,7 +456,7 @@ class MetarPlotter(object):
         style = self.theme.get_ci("pres")
         quantity = quantities.Pressure
         unit = quantity.find_unit(unit)
-        self._plot_dh_cycle_hoursteps(ax,'sp',title='Surface Pressure [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'pres',title='Surface Pressure [%s]'%unit,
             ylim=(quantity(950,'hPa')[unit],quantity(1050,'hPa')[unit]),
             unit=unit,quantity=quantity,style=style)
     def plot_frequency_gust(self,ax,unit='kt',freq_unit='%'):
