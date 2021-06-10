@@ -74,7 +74,7 @@ class Metar(object):
         /
         (?P<dwpt>(M|-)?[\dO]+|//|XX|MM)? \s+"""
     _regexes['pres'] = r"""^
-        (?P<unit>A|Q|QNH|ALSTG)?
+        (?P<unit>A|Q|QNH|ALSTG)
         (?P<p>[\dO]{3,5}|////)
         (?P<unit2>INS)?
         \s+"""
