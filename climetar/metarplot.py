@@ -1389,43 +1389,43 @@ class MetarPlotter(object):
 
         msg += "Temp "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_tmin_tmax(savefig=os.path.join(dirname_figs,'Y_temp.png') if savefig else None)
-        self.plotset_ymwide_wcet(savefig=os.path.join(dirname_figs,'Y_wcet.png') if savefig else None)
-        self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'Y_wbgt.png') if savefig else None)
-        self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'Y_wbgt_flag.png') if savefig else None,limit_theme='limits.wbgt_flag')
+        self.plotset_ymwide_tmin_tmax(savefig=os.path.join(dirname_figs,'temp.png') if savefig else None)
+        self.plotset_ymwide_wcet(savefig=os.path.join(dirname_figs,'wcet.png') if savefig else None)
+        self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'wbgt.png') if savefig else None)
+        self.plotset_ymwide_wbgt(savefig=os.path.join(dirname_figs,'wbgt_flag.png') if savefig else None,limit_theme='limits.wbgt_flag')
 
         msg += "RH "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_relh(savefig=os.path.join(dirname_figs,'Y_relh.png') if savefig else None)
+        self.plotset_ymwide_relh(savefig=os.path.join(dirname_figs,'relh.png') if savefig else None)
 
         msg += "Vis "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_vism(savefig=os.path.join(dirname_figs,'Y_vis.png') if savefig else None)
+        self.plotset_ymwide_vism(savefig=os.path.join(dirname_figs,'vis.png') if savefig else None)
 
         msg += "Wind "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_wind(savefig=os.path.join(dirname_figs,'Y_wind.png') if savefig else None)
+        self.plotset_wind(savefig=os.path.join(dirname_figs,'wind.png') if savefig else None)
 
         msg += "Cloud "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'Y_ceiling.png') if savefig else None)
-        self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'Y_cloud_cover.png') if savefig else None)
+        self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'ceiling.png') if savefig else None)
+        self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'cloud_cover.png') if savefig else None)
 
         msg += "Precipitation "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_precipdays(savefig=os.path.join(dirname_figs,'Y_precipitation.png') if savefig else None)
+        self.plotset_ymwide_precipdays(savefig=os.path.join(dirname_figs,'precipitation.png') if savefig else None)
 
         msg += "Color "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_color(savefig=os.path.join(dirname_figs,'Y_color_state.png') if savefig else None)
+        self.plotset_ymwide_color(savefig=os.path.join(dirname_figs,'color_state.png') if savefig else None)
 
         msg += "Solar "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'Y_solar.png') if savefig else None)
+        self.plotset_ymwide_solar(savefig=os.path.join(dirname_figs,'solar.png') if savefig else None)
 
         msg += "Map "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_map(savefig=os.path.join(dirname_figs,'Y_map.png') if savefig else None)
+        self.plotset_map(savefig=os.path.join(dirname_figs,'map.png') if savefig else None)
 
         msg += "Klaar!"
         print(msg,end='\r',flush=True)
