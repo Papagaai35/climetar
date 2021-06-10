@@ -3,6 +3,7 @@ resources/ne*.zip
 resources/NE*.zip
 resources/natural_earth/
 !resources/ne_10m_admin_0_countries.zip
+!resources/ne_10m_admin_0_map_subunits.zip
 !resources/ne_50m_admin_0_countries.zip
 
 data/*.metar

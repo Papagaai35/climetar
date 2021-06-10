@@ -50,6 +50,7 @@ class MetarPlotter(object):
         self.df = None
         self.pdf = None
         self.astro = None
+        self.countryfinder = None
         self.filters = {}
         self.years = {}
 
@@ -251,8 +252,10 @@ class MetarPlotter(object):
 
     @classmethod
     def prepare_maps(cls):
-        global cartopy
+        global cartopy, shapely
         import cartopy
+        import shapely
+        import shapely.ops
     def load_map_raster(self,name):
         raise ValueError('xarray is currently not available....')
         tif_path = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],name,['tif','tiff'])
@@ -1426,6 +1429,7 @@ class MetarPlotter(object):
         msg += "Map "
         print(msg+'...',end='\r',flush=True)
         self.plotset_map(savefig=os.path.join(dirname_figs,'map.png') if savefig else None)
+        self.plotset_map_outline(savefig=os.path.join(dirname_figs,'map_outline.png') if savefig else None)
 
         msg += "Klaar!"
         print(msg,end='\r',flush=True)
@@ -1539,7 +1543,44 @@ class MetarPlotter(object):
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
+    
+    def plotset_map_outline(self,station=None,savefig=None,country_code=None,transparent=None):
+        station = station if station is not None else self.station
+        self.countryfinder = CountryFinder(**self.filepaths)
+        s,sd = self.station_repo.get_station(station)
+        lon,lat = sd['longitude'],sd['latitude']
+        geom,attrs = self.countryfinder.find_closest_country(lon,lat,country_code)
+        _log.debug("Map_outline: Plotting %s on map of %s %s"%(s,attrs['SU_A3'],attrs['NAME']))
+        
+        if transparent is None:
+            transparent = savefig is not None
+        clon,clat = geom.centroid.x,geom.centroid.y
+        lonmin, latmin, lonmax, latmax = geom.bounds
+        if (lonmin+360-lonmax<5):
+            polygon_bounds = np.array([list(p.bounds) for p in list(geom)])
+            lonmin = np.nanmin(np.where(polygon_bounds[:,0]>0,polygon_bounds[:,0],np.nan))
+            lonmax = np.nanmax(np.where(polygon_bounds[:,0]<0,polygon_bounds[:,2],np.nan)+360)
+        extent = min(lon,lonmin),max(lon,lonmax),min(lat,latmin),max(lat,latmax)
 
+        proj = cartopy.crs.NearsidePerspective(central_longitude=clon,central_latitude=clat,satellite_height=35785831)
+        trans = cartopy.crs.PlateCarree()
+        fig,ax = plt.subplots(1,1,subplot_kw={'projection':proj})
+
+        if transparent:
+            ax.background_patch.set_facecolor('#ffffff00')
+        else:
+            ax.background_patch.set_facecolor(self.theme.get("map_outline.bg")[0]['facecolor'])
+        ax.outline_patch.set_linewidth(0.0)
+        
+        ax.scatter(lon,lat,transform=trans,s=36*5,marker='.',zorder=2,**self.theme.get("map_outline.dot")[0])
+        shp = cartopy.feature.ShapelyFeature([geom],trans,zorder=-1,**self.theme.get("map_outline.shp")[0])
+        ax.add_feature(shp,zorder=-1)
+        ax.set_extent(extent,crs=trans)
+
+        if savefig is not None:
+            plt.savefig(savefig,transparent=transparent)
+            plt.close()
+    
     def test_all_plotsets_to_screen(self,but_not=None):
         plotsets = sorted([name for name in self.__class__.__dict__.keys() if name.startswith('plotset_')])
         but_not = but_not if but_not is not None else []
@@ -1637,6 +1678,109 @@ class MetarPlotter(object):
 
         _log.info('De PDF kan gevonden worden in "%s"'%os.path.join(self.filepaths['output'],self.station,self.station_data['icao'].upper()+"_monthly.pdf"))
 
+class CountryFinder(object):
+    def __init__(self,**settings):
+        self.filepaths = {'natural_earth': settings.get('natural_earth','./resources/')}
+        
+        try:
+            MetarPlotter.prepare_maps()
+        except ModuleNotFoundError as err:
+            _log.error(repr(err)+'\nInstalleer opnieuw de packages via "00. Instaleren & Introductie.ipynb"',exc_info=err)
+            _log.info('Kaart niet geplot...')
+            return
+        
+        self.countries_with_subunits_seperate = {
+            'ATF': (4,[]),
+            'AUS': (3,['AUM']),
+            'CHL': (4,[]),
+            'ECU': (4,[]),
+            'ESP': (3,['ESC']),
+            'FRA': (3,[]),
+            'IOA': (3,[]),
+            'NLD': (3,[]),
+            'NOR': (3,[]),
+            'NZL': (3,[]),
+            'PRT': (3,[]),
+            'RUS': (3,['RUC']),
+            'SHN': (4,[]),
+            'USA': (4,[]),
+            'ZAF': (4,[])
+        }
+        self.geometries = {}
+        self.attributes_df = None
+        self.get_countries_from_natural_earth()
+        
+    def get_countries_from_natural_earth(self):
+        cshpf = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],'ne_10m_admin_0_countries','shp')
+        ushpf = MapPlotHelper.search_or_extract(self.filepaths['natural_earth'],'ne_10m_admin_0_map_subunits','shp')
+        cgeom, cdf = MapPlotHelper.shape_to_dataframe('SU_A3',cshpf)
+        ugeom, udf = MapPlotHelper.shape_to_dataframe('SU_A3',ushpf)
+        cdf = cdf.assign(code=cdf.SU_A3.apply(lambda t: 'c_'+t))
+        cdf = cdf.assign(geometries='')
+        udf = udf.assign(code=udf.SU_A3.apply(lambda t: 'u_'+t))
+        udf = udf.assign(geometries=udf.code)
+        all_df = pd.concat([cdf,udf]).reset_index(drop=True)
+        for i,r in all_df.loc[all_df.LEVEL==3].iterrows():
+            all_df.loc[i,'geometries'] = ",".join(sorted(list(set(
+                all_df.loc[(all_df.ADM0_A3==r.ADM0_A3) & (all_df.GU_A3==r.GU_A3) & (all_df.LEVEL>=3),'geometries'].to_list()
+            ))))
+        for i,r in all_df.loc[all_df.LEVEL==2].iterrows():
+            all_df.loc[i,'geometries'] = ",".join(sorted(list(set(
+                all_df.loc[(all_df.ADM0_A3==r.ADM0_A3) & (all_df.LEVEL>=3),'geometries'].to_list()
+            ))))
+        all_df = all_df.sort_values(['LEVEL','ADM0_A3'],ascending=False)
+        df = cdf.loc[~cdf.ADM0_A3.isin(list(self.countries_with_subunits_seperate.keys())),:].reset_index(drop=True)
+        for i,r in df.iterrows():
+            df.loc[i,'geometries'] = r.code if r.geometries=='' else r.geometries
+        df = df.sort_values(['LEVEL','ADM0_A3']).reset_index(drop=True)
+    
+        for c,(l,e) in self.countries_with_subunits_seperate.items():
+            if len(e)==0:
+                sdf = all_df.loc[(all_df.ADM0_A3==c) & (all_df.LEVEL>=3) & (all_df.LEVEL<=l)]
+            else:
+                sdf = all_df.loc[(all_df.ADM0_A3==c) & (all_df.LEVEL>=3) & ((all_df.LEVEL<=l)|all_df.SU_A3.isin(e))]
+            sdf = sdf.sort_values(['LEVEL','ADM0_A3'],ascending=False).reset_index(drop=True)
+            for i,r in sdf.iterrows():
+                other_row_geometries = sdf.drop(i).geometries.str.split(",").to_list()
+                other_geometries = [g for gr in other_row_geometries for g in gr]
+                geocodes = r.geometries.split(',')
+                sdf.loc[i,'geometries'] = ",".join(list(filter(
+                    lambda c: ((c not in other_geometries) or c==r.code),geocodes)))
+            df = pd.concat([df,sdf],sort=False)
+        df = df.loc[df.geometries!=''].reset_index(drop=True)
+        df = df.sort_values(['LEVEL','ADM0_A3']).reset_index(drop=True)
+        geometries = {}
+        for i,r in df.iterrows():
+            geo_list = [(cgeom[g[2:]].geometry if g[0]=='c' else ugeom[g[2:]].geometry) for g in r.geometries.split(',')]
+            if len(geo_list)>1:
+                geometries[r.key] = shapely.ops.cascaded_union(geo_list)
+            else:
+                geometries[r.key] = geo_list[0]
+        self.geometries = geometries
+        self.attributes_df = df
+    def find_closest_country(self,lon,lat,country_code=None):
+        p = shapely.geometry.Point(lon,lat)
+        if country_code is not None:
+            if country_code in self.attributes_df.key:
+                return (
+                    self.geometries[country_code],
+                    self.attributes_df.loc[self.attributes_df.key==country_code].iloc[0].to_dict())
+            raise ValueError('Could not find country %s'%country_code)
+        else:
+            distances = {}
+            for k,c in self.geometries.items():
+                if c.contains(p):
+                    distances[k] = -1
+                    break
+                np1, np2 = shapely.ops.nearest_points(c,p)
+                d = p.distance(np1)
+                if len(distances)==0 or min(list(distances.values()))>d:
+                    distances[k] = d
+            closest_country = min(distances,key=distances.get)
+            return (
+                self.geometries[closest_country],
+                self.attributes_df.loc[self.attributes_df.key==closest_country].iloc[0].to_dict())
+
 class MapPlotHelper(object):
     @classmethod
     def search_files(cls,basepath,name,exts):
@@ -1705,6 +1849,16 @@ class MapPlotHelper(object):
         img_da = imgda.isel(**img_slice)
         img_extent = np.array([[o(img_da[c].values) for o in [np.min,np.max]] for c in 'xy']).flatten()
         return img_extent,img_da
+    @classmethod
+    def shape_to_dataframe(cls,key,shapefile):
+        shpr = cartopy.io.shapereader.Reader(shapefile)
+        data = {}
+        geom = {}
+        for r in shpr.records():
+            data[r.attributes[key]] = r.attributes
+            geom[r.attributes[key]] = r
+        df = pd.DataFrame.from_dict(data,orient='index')
+        return geom, df.reset_index().rename(columns={'index':'key'})
 
 class mplLegendSubheading(object):
     def __init__(self,s,level=0):

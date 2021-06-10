@@ -9,7 +9,12 @@
         "wind":"#39870c",
         "vism":"#42145f",
         "ceiling":"#e17000",
-        "solar_noon":"k"
+        "solar_noon":"k",
+        "map_outline":{
+            "bg": "#f39900",
+            "shp": "#ffffff",
+            "dot": "#004e83"
+        }
     },
     "facealpha":{
         "default":"ff",
