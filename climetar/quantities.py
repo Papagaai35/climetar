@@ -65,7 +65,7 @@ class Quantity(object):
             self.default_unit = self.storage_unit
         if unit is None and not self.no_default_unit():
             unit = self.default_unit
-        if unit is None and not self.no_default_unit():
+        elif unit is None and not self.no_storage_unit():
             unit = self.storage_unit
         assert unit is not None and isinstance(unit,str)
 
@@ -78,15 +78,18 @@ class Quantity(object):
         if self.default_unit!=self.storage_unit:
             val = self.convert_to(val,self.default_unit)
         return float(val)
-    def __repr__(self):
+    def formatted_value(self,display_unit=None):
         val, unit = self.value, self.storage_unit
-        if (not self.no_default_unit()) and self.default_unit!=self.storage_unit:
+        if display_unit is not None:
+            val, unit = self.convert_to(val,display_unit), display_unit
+        elif (not self.no_default_unit()) and self.default_unit!=self.storage_unit:
             val, unit = self.convert_to(val,self.default_unit), self.default_unit
-        return "%s(%s%g %s)"%(
-            self.__class__.__name__,
+        return "%s%g %s"%(
             ['','>','<'][self.greater],
             val,
             '[-]' if unit=='' else unit)
+    def __repr__(self):
+        return "%s(%s)"%(self.__class__.__name__,self.formatted_value())
     def __getitem__(self,key):
         return self.convert_to(self.value+self.greater,key)
     
@@ -226,14 +229,29 @@ class Distance(Quantity):
     }
     storage_unit = 'm'
     alias_units = {'SM': 'mi'}
-class Height(Distance):
+    
+class Height(Quantity):
+    units = {
+        'km': 1000/0.3048,
+        'm': 1/0.3048,
+        'cm': 0.01/0.3048,
+        'mm': 0.001/0.3048,
+        'ft': 1,
+        'in': 1/12,
+        'mi': 5280,
+        'NM': 1852/0.3048,
+        'FL': 100,
+    }
+    storage_unit = 'ft'
+    alias_units = {'SM': 'mi'}
+    
     default_unit = 'ft'
     @classmethod
     def of_cloud(cls,value):
         value, _ = cls.number_from_str(value)
         if not pd.isnull(value):
             value = (value-90)*1000 if value>100 else value*100
-        return cls(value)
+        return cls(value,'ft')
 
 class Speed(Quantity):
     units = {

@@ -453,7 +453,7 @@ class MetarPlotter(object):
         quantity = quantities.Height
         unit = quantity.find_unit(unit)
         self._plot_dh_cycle_hoursteps(ax,'sky_ceiling',title='Cloud base [%s]'%unit,
-            ylim=(0,quantities.Distance(5e3,'ft')[unit]),
+            ylim=(0,quantities.Height(5e3,'ft')[unit]),
             unit=unit,quantity=quantity,style=style)
     def plot_dh_cycle_pres(self,ax,unit='hPa'):
         style = self.theme.get_ci("pres")
