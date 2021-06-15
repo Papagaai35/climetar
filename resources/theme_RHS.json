@@ -123,6 +123,16 @@
             "RainSnowHail":"#a90061",
             "Unknown":"#696969"
         },
+        "ceiling_aggr":{
+            "200":"#696969",
+            "500":"#b4b4b4",
+            "1000":"#e6e6e6"
+        },
+        "vis_aggr":{
+            "1000":"#ddeff8",
+            "2500":"#8fcae7",
+            "5000":"#007bc7"
+        },
         "sigwx":{
             "__comment__":{
                 "TS":"Thunderstorm, Paars",

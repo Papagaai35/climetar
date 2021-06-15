@@ -323,6 +323,45 @@ class MetarPlotter(object):
         self.pdf['wind_dir_compass'] = np.take(catnames,self.pdf.wind_dir_catindex)
         self.pdf['wind_dir_catdeg'] = np.take(catcenters,self.pdf.wind_dir_catindex)
         self.pdf['wind_dir_catrad'] = np.deg2rad(self.pdf.wind_dir_catdeg)
+    
+    @classmethod
+    def consecutive_below_threshold(cls,df,col,threshold,min_number_of_observations):
+        def list_dates(s):
+            return len(list(s.dt.normalize().unique()))
+        assert min_number_of_observations>1
+        s = df.loc[:,col]
+        m = np.logical_and.reduce([s.shift(-i).le(threshold) for i in range(min_number_of_observations)])
+        m = pd.Series(m,index=s.index).replace({False:np.nan}).ffill(limit=min_number_of_observations-1).fillna(False)
+        gps = m.ne(m.shift(1)).cumsum().where(m)
+        if gps.isnull().all():
+            return None
+        return df.groupby(gps).agg(**{
+            'timeStart': ('time',min),
+            'timeEnd': ('time',max),
+            'dates': ('time',list_dates),
+            'messages': ('station','count'),
+            'minutes_valid': ('minutes_valid','sum'),
+            col+'_min': (col,min),
+            col+'_max': (col,max)
+        }).reset_index(drop=True)
+    def get_days_of_periods_below_threshold(self,col,thresholds,min_minutes_valid=30,min_number_of_observations=3):
+        dft = self.pdf.copy().sort_values('time')
+        belowth_dict = {'all':pd.Series(index=dft.time.dt.normalize().unique())}
+        for i,th in enumerate(thresholds):
+            dftg = self.consecutive_below_threshold(dft,col,th,min_number_of_observations)
+            dftg = dftg.loc[dftg.minutes_valid>min_minutes_valid].reset_index()
+            belowth_dict[th] = dftg.groupby(dftg.timeStart.dt.normalize())[col+'_max'].min()
+            for j,row in dftg.loc[dftg.dates>=2].iterrows():
+                dates = pd.date_range(row.timeStart.normalize(),row.timeEnd.normalize())[1:]
+                for date in dates:
+                    if date in belowth_dict[th].index:
+                        belowth_dict[th].at[date] = min(belowth_dict[th].at[date],row[col+'_max'])
+                    else:
+                        belowth_dict[th].append(pd.Series(row[col+'_max'],index=[date]))
+            belowth_dict[th] = belowth_dict[th].sort_index()
+        dfg = pd.concat(belowth_dict,axis=1,sort=True).reset_index().rename(columns={'index':'time'})
+        dfg['time'] = pd.to_datetime(dfg.time)
+        return dfg
 
     # Wind properties
     def plot_wind_compass_dir_freq(self,ax,unit='%',cat=True):
@@ -856,6 +895,65 @@ class MetarPlotter(object):
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,quantities.Distance(5e3,'ft')[unit])
         ax.set_title('Cloud base [%s]'%unit)
+    def plot_ym_ceilingdays(self,ax):
+        style = self.theme.get_set("bar.ceiling_aggr")
+        thresholds = sorted(list(style.keys()))
+        
+        dfg = self.get_days_of_periods_below_threshold('sky_ceiling',thresholds)
+        data = (~pd.isnull(dfg)).groupby([dfg.time.dt.year,dfg.time.dt.month]).sum().unstack().mean().unstack().T.loc[:,thresholds]
+        data2 = data.iloc[:,[0]].rename(columns={data.columns[0]:str(data.columns[0])})
+        for c in range(1,data.shape[1]):
+            data2 = data2.assign(**{str(data.columns[c]): data.iloc[:,c] - data.iloc[:,c-1]})
+            
+        bottom = data2.cumsum(axis=1).shift(1,axis=1).fillna(0)
+        colums = data2.index.values
+        handles = []
+        for c in data2.columns:
+            handles.append(
+                ax.bar(
+                    data2.index,
+                    data2[c].values,
+                    bottom=bottom[c].values,
+                    **style[int(c)][0]))
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.get_filter_minmax('month')
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_ylim(0,31)
+        ax.set_title('Days with a Cloud base below')
+    def plot_ym_visdays(self,ax):
+        style = self.theme.get_set("bar.vis_aggr")
+        thresholds = sorted(list(style.keys()))
+        
+        dfg = self.get_days_of_periods_below_threshold('vis',thresholds)
+        data = (~pd.isnull(dfg)).groupby([dfg.time.dt.year,dfg.time.dt.month]).sum().unstack().mean().unstack().T.loc[:,thresholds]
+        data2 = data.iloc[:,[0]].rename(columns={data.columns[0]:str(data.columns[0])})
+        for c in range(1,data.shape[1]):
+            data2 = data2.assign(**{str(data.columns[c]): data.iloc[:,c] - data.iloc[:,c-1]})
+        bottom = data2.cumsum(axis=1).shift(1,axis=1).fillna(0)
+        colums = data2.index.values
+        handles = []
+        for c in data2.columns:
+            handles.append(
+                ax.bar(
+                    data2.index,
+                    data2[c].values,
+                    bottom=bottom[c].values,
+                    **style[int(c)][0]))
+        xticks = [3,6,9,12]
+        ax.set_xticks(xticks);
+        ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
+        ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
+        begin, end = self.get_filter_minmax('month')
+        begin = 1 if begin is None else begin
+        end = 12 if end is None else end
+        ax.set_xlim(begin-.5,end+.5)
+        ax.set_ylim(0,31)
+        ax.set_title('Days with a visibility below')
     def plot_ym_precipdays(self,ax):
         style = self.theme.get_set("bar.precipitation_aggr")
         preciptypes = {
@@ -1259,6 +1357,50 @@ class MetarPlotter(object):
         if savefig is not None:
             plt.savefig(savefig)
             plt.close()
+    def plotset_ymwide_ceilingdays(self,savefig=None):
+        fig = plt.figure(figsize=(6.3,2.1))
+        width = .80
+        ax = fig.add_axes([.05,.1,width,.8])
+        self.plot_ym_ceilingdays(ax)
+
+        ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
+        style = self.theme.get_set("patch.ceiling_aggr")
+        legends = [
+            mpl.patches.Patch(label='≤ '+quantities.Height(k).formatted_value(), **style[k][0])
+            for k in reversed(sorted(list(style.keys())))
+        ]
+        ax2.legend(handles=legends,
+            bbox_to_anchor=(.5,.5),
+            loc='center',
+            handler_map={
+                mplLegendSubheading:mplLegendSubheadingHandler(),
+            })
+        ax2.set_axis_off()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
+    def plotset_ymwide_visdays(self,savefig=None):
+        fig = plt.figure(figsize=(6.3,2.1))
+        width = .82
+        ax = fig.add_axes([.05,.1,width,.8])
+        self.plot_ym_visdays(ax)
+
+        ax2 = fig.add_axes([width+.05,.1,1-width-.03,.8])
+        style = self.theme.get_set("patch.vis_aggr")
+        legends = [
+            mpl.patches.Patch(label='≤ '+quantities.Distance(k).formatted_value('km'), **style[k][0])
+            for k in reversed(sorted(list(style.keys())))
+        ]
+        ax2.legend(handles=legends,
+            bbox_to_anchor=(.5,.5),
+            loc='center',
+            handler_map={
+                mplLegendSubheading:mplLegendSubheadingHandler(),
+            })
+        ax2.set_axis_off()
+        if savefig is not None:
+            plt.savefig(savefig)
+            plt.close()
     def plotset_ymwide_precipdays(self,savefig=None):
         fig = plt.figure(figsize=(6.3,2.1))
         width = .74
@@ -1403,7 +1545,8 @@ class MetarPlotter(object):
 
         msg += "Vis "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_vism(savefig=os.path.join(dirname_figs,'vis.png') if savefig else None)
+        #self.plotset_ymwide_vism(savefig=os.path.join(dirname_figs,'vis.png') if savefig else None)
+        self.plotset_ymwide_visdays(savefig=os.path.join(dirname_figs,'vis_below.png') if savefig else None)
 
         msg += "Wind "
         print(msg+'...',end='\r',flush=True)
@@ -1411,7 +1554,8 @@ class MetarPlotter(object):
 
         msg += "Cloud "
         print(msg+'...',end='\r',flush=True)
-        self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'ceiling.png') if savefig else None)
+        #self.plotset_ymwide_ceiling(savefig=os.path.join(dirname_figs,'ceiling.png') if savefig else None)
+        self.plotset_ymwide_ceilingdays(savefig=os.path.join(dirname_figs,'ceiling_below.png') if savefig else None)
         self.plotset_ymwide_cloud_type(savefig=os.path.join(dirname_figs,'cloud_cover.png') if savefig else None)
 
         msg += "Precipitation "
