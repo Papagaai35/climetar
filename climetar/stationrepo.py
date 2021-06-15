@@ -57,3 +57,16 @@ class StationRepo(object):
 
     def __contains__(self,item):
         return item in self.stations or item in self.aliases
+
+    def print_network_list(self):
+        networks = []
+        for k,v in self.networks.items():
+            if k != 'AWOS':
+                keyelem = (k if k.count('_')==2 else 'US_'+k).replace('__','_  _').split('_')
+                country,region = keyelem[0].strip(),keyelem[1].strip()
+            else:
+                country,region = 'US','IA'
+            name = v['properties']['name'].replace('AWOS','').replace('ASOS','').strip()
+            networks.append((country,region,k,name))
+        for n in sorted(networks,key=lambda n: n[0]+n[1]):
+            print(f'{n[0]:2s} {n[1]:2s} {n[2]:>10s} {n[3]}')
