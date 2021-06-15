@@ -11,9 +11,9 @@
         "ceiling":"#e17000",
         "solar_noon":"k",
         "map_outline":{
-            "bg": "#f39900",
+            "dot": "#f39900",
             "shp": "#ffffff",
-            "dot": "#004e83"
+            "bg": "#004e83"
         }
     },
     "facealpha":{
