@@ -1591,9 +1591,11 @@ class MetarPlotter(object):
             _log.error(repr(err)+'\nInstalleer opnieuw de packages via "00. Instaleren & Introductie.ipynb"',exc_info=err)
             _log.info('Kaart niet geplot...')
             return
+        if isinstance(stations,str):
+            stations = [stations]
         if stations is None:
             stations = self.stations_on_map
-        if self.station not in stations and self.station is not None:
+        if self.station is not None and self.station not in stations:
             stations = [self.station] + stations
         station_list = []
         for s in stations:
@@ -1642,6 +1644,7 @@ class MetarPlotter(object):
             station, station_data = self.station_repo.get_station(s)
             lat,lon = station_data['latitude'], station_data['longitude']
             station_text = station_data.get('icao',station)
+            station_text = s if station_text is None or station_text=='' else station_text
             if extent[0] <= lon <= extent[1] and extent[2] <= lat <= extent[3]:
                 plane_str = """m 37.398882,331.5553 195.564518,-53.33707 81.92539,81.92539 c 18.40599,18.40599 58.40702,30.50459 72.90271,27.64788 2.85671,-14.49569 -9.24189,-54.49672 -27.64788,-72.90271 L 278.21823,232.9634 331.5553,37.39888 305.29335,11.13693 216.40296,171.14812 133.86945,88.61462 142.35474,29.21765 113.13708,0 73.058272,73.05827 0,113.13708 l 29.217652,29.21766 59.39697,-8.48529 82.533498,82.53351 -160.011188,88.89039 26.26195,26.26195"""
                 plane_path = parse_path(plane_str)
