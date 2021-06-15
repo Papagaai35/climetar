@@ -7,12 +7,12 @@ def getLogger(name):
     addLevel('tryexcept',39)
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
+    logger.addHandler(getStdOutHandler())
+    logger.addHandler(getStdErrHandler())
     if os.getenv('CLIMETAR_DEBUG') == 'DEBUG':
         os.environ['CLIMETAR_DEBUG'] = 'DEBUGING'
         return logger
     logger.addHandler(getLogFileHandler())
-    logger.addHandler(getStdOutHandler())
-    logger.addHandler(getStdErrHandler())
     try:
         ipython_shell = get_ipython()
         ipython_shell.set_custom_exc((Exception,),getIpythonExceptionHandler(logger))
