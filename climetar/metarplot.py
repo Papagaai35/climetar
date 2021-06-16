@@ -924,7 +924,7 @@ class MetarPlotter(object):
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,31)
-        ax.set_title('Days with a Cloud base below')
+        ax.set_title('Days with low clouds')
     def plot_ym_visdays(self,ax):
         style = self.theme.get_set("bar.vis_aggr")
         thresholds = sorted(list(style.keys()))
@@ -953,7 +953,7 @@ class MetarPlotter(object):
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
         ax.set_ylim(0,31)
-        ax.set_title('Days with a visibility below')
+        ax.set_title('Days with low visibility')
     def plot_ym_precipdays(self,ax):
         style = self.theme.get_set("bar.precipitation_aggr")
         preciptypes = {
