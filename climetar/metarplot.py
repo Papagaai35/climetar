@@ -1082,9 +1082,39 @@ class MetarPlotter(object):
         begin = 1 if begin is None else begin
         end = 12 if end is None else end
         ax.set_xlim(begin-.5,end+.5)
+        
         if ylim is None:
             n = bottom.iloc[:,-1].max()
-            ax.set_ylim(0,np.ceil(n/10**np.floor(np.log10(n)))*(10**np.floor(np.log10(n))))
+            order_of_magnitude = 10**np.floor(np.log10(n))
+            n0 = np.ceil(n/order_of_magnitude)*order_of_magnitude
+            if n0>=100:
+                ax.set_ylim(0,n0)
+            else:
+                n1 = (1+np.ceil(n/order_of_magnitude))*order_of_magnitude
+                n2 = (2+np.ceil(n/order_of_magnitude))*order_of_magnitude
+                ax.set_ylim(0,n1)
+                ax.set_yticks(np.arange(0,n2,order_of_magnitude))
+                if n1<100:
+                    labels = list(np.arange(0,n1,order_of_magnitude))+[100]
+                    if order_of_magnitude>=1:
+                        labels = list(map(int,labels))
+                    ax.set_yticklabels(labels)
+                    tearline_y = (len(labels)-1.5)/(len(labels)-1)
+                    tearline_coords = [
+                        (-5,-3),
+                        ( 5,-3),
+                        ( 5, 3),
+                        (-5, 3),
+                        (-5,-3),
+                    ]
+                    tearline_lines = mpl.path.Path(tearline_coords,[1,2,1,2,0])
+                    tearline_inner = mpl.path.Path(tearline_coords,[1,2,2,2,79])
+                    ax.scatter([0],[tearline_y],marker=tearline_inner,s=15,
+                               c='white',linewidths=0,edgecolors='none',
+                               transform=ax.transAxes,clip_on=False,zorder=99)
+                    ax.scatter([0],[tearline_y],marker=tearline_lines,s=15,
+                               c='white',linewidths=mpl.rcParams['axes.linewidth'],edgecolors='k',
+                               transform=ax.transAxes,clip_on=False,zorder=100)
         else:
             ax.set_ylim(*ylim)
         ax.set_title('NATO Color State [%s]'%freq_unit)
