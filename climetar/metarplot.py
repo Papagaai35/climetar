@@ -707,7 +707,7 @@ class MetarPlotter(object):
             ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
             ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
             ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -748,7 +748,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
 
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -797,7 +797,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.005],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.995],zorder=-1,**style[3])
 
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -829,7 +829,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
 
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -857,7 +857,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
 
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -885,7 +885,7 @@ class MetarPlotter(object):
         ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
         ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
 
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -915,7 +915,7 @@ class MetarPlotter(object):
                     data2[c].values,
                     bottom=bottom[c].values,
                     **style[int(c)][0]))
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -944,7 +944,7 @@ class MetarPlotter(object):
                     data2[c].values,
                     bottom=bottom[c].values,
                     **style[int(c)][0]))
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -997,7 +997,7 @@ class MetarPlotter(object):
                     data3[c].values,
                     bottom=bottom[c].values,
                     **style[c][0]))
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -1030,7 +1030,7 @@ class MetarPlotter(object):
                     bottom=begin[c].values,
                     **style[c][0]))
 
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
@@ -1074,7 +1074,7 @@ class MetarPlotter(object):
                     bottom=bottom[c].values,
                     **style[c][0]))
 
-        xticks = [3,6,9,12]
+        xticks = list(range(1,13))
         ax.set_xticks(xticks);
         ax.set_xticklabels([self.locales['monthabbr'][m] for m in xticks])
         ax.set_xticks([1,2,3,4,5,6,7,8,9,10,11,12],minor=True);
