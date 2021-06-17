@@ -37,6 +37,11 @@ if __name__=='__main__':
                 station['properties']['kind'] = 'station'
                 station['properties']['network'] = network
                 station['properties']['aliasses'] = {f['id'],f['properties']['sid']}
+                time_domain = f['properties'].get('time_domain','')
+                station['properties']['time_from'], station['properties']['time_to'] = (
+                    time_domain[1:-1].split('-') 
+                    if ('-' in time_domain and time_domain[0] in '({[' and time_domain[-1] in ']})')
+                    else "","")
                 stationdata[f['id']] = station
                 networkdata[network]['properties']['stations'].add(f['id'])
     print('Loading stations from networks: %-70s'%'Done.',flush=True)
@@ -65,6 +70,6 @@ if __name__=='__main__':
     geodata = list(networkdata.values()) + list(stationdata.values())
     geojson = {"type": "FeatureCollection", "features": geodata, "generation_time": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), "count": len(geodata)}
     with open('stations.geojson','w') as fh:
-        json.dump(geojson,fh,cls=PythonObjectEncoder)
+        json.dump(geojson,fh,cls=PythonObjectEncoder,indent=4)
     
     print('Written geojson to %s'%os.path.abspath(os.path.join('.','stations.geojson')))
