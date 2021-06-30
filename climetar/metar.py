@@ -121,7 +121,16 @@ class Metar(object):
         (?P<code>(BLU|WHT|GRN|YLO1|YLO2|YLO|AMB|RED)\+?)
         (?:[\s/]?(BLACK)?(BLU|WHT|GRN|YLO1|YLO2|YLO|AMB|RED|/+)\+?)*
         \s+"""
-    _regexes['rmk'] = r"""^ (RMKS?).*\Z"""
+    _regexes['rmk'] = r"""^ (RMKS?)(?P<remarks>.*)\Z"""
+    _rmk_regexes = collections.OrderedDict()
+    _rmk_regexes['auto'] = r"""^AO(?P<type>\d)\s+"""
+    _rmk_regexes['slp'] = r"""^SLP(?P<p>\d\d\d)\s+"""
+    _rmk_regexes['temp'] = """^
+        T(?P<tsign>0|1)
+        (?P<temp>\d\d\d)
+        ((?P<dsign>0|1)
+        (?P<dwpt>\d\d\d))?
+        \s+"""
 
     _cloud_cover_codes = {'SKC':-3,'NCD':-2,'CLR':-1,'NSC':0,'FEW':1,'SCT':3,'BKN':5,'OVC':8,'VV':9}
     _color_codes = {'BLU':0,'WHT':1,'GRN':2,'YLO':3,'YLO1':4,'YLO2':5,'AMB':6,'RED':7}
@@ -381,6 +390,56 @@ class Metar(object):
     def handle_color(self):
         self.data['color'] = self.elements.get('color1','').strip()
         self.handled.append('color')
+    def handle_rmk(self):
+        remarkmessage = self.elements.get('rmk_remarks','').strip()
+        self.data['rmk'] = remarkmessage
+        
+        parsed_rkmrxs = []
+        while len(remarkmessage)>0:
+            found = False
+            for rmkrxname,rmkrx in self._rmk_regexes.items():
+                if rmkrxname in parsed_rkmrxs:
+                    continue
+                match = re.search(rmkrx,remarkmessage,re.VERBOSE)
+                if self.is_match(match):
+                    found = True
+                    result_dict = {'RMK_'+rmkrxname+'_'+k:v for k,v in match.groupdict().items()}
+                    result_dict['RMK_'+rmkrxname] = match.group(0)
+                    self.elements.update(result_dict)
+                    remarkmessage = remarkmessage[match.end():]
+                    parsed_rkmrxs.append(rmkrxname)
+                    break
+            if found:
+                continue
+            if (
+                len(parsed_rkmrxs)==len(list(self._rmk_regexes.keys())) or
+                len(remarkmessage.strip())==0 or
+                " " not in remarkmessage.strip()):
+                break
+            remarkmessage = remarkmessage[remarkmessage.find(" ")+1:]
+        
+        for key in parsed_rkmrxs:
+            fn = getattr(self,'handlermk_'+key,None)
+            if fn is not None and 'RMK_'+key not in self.handled:
+                fn()
+    def handlermk_auto(self):
+        self.data['mod'] = " ".join( self.data.get('mod','').strip().split(' ') + [self.elements.get('RMK_auto','').strip()] )
+        self.handled.append('RMK_auto')
+    def handlermk_slp(self):
+        if pd.isnull(self.data.get('pres',np.nan)) or pd.isnull(float(self.data.get('pres',np.nan))):
+            self.data['pres'] = Pressure.missing_first_digit_daPa(self.elements.get('RMK_slp_p',''))
+        self.handled.append('RMK_slp')
+    def handlermk_temp(self):
+        temp,dwpt = self.elements.get('RMK_temp_temp'), self.elements.get('RMK_temp_dwpt')
+        if temp is not None and temp!='':
+            tsign = self.elements.get('RMK_temp_tsign')
+            tsignm = '-' if tsign is not None and tsign=='1' else ''
+            self.data['temp'] = Temperature(tsignm+temp,'d°C')
+        if dwpt is not None and dwpt!='':
+            dsign = self.elements.get('RMK_temp_tsign')
+            dsignm = '-' if dsign is not None and dsign=='1' else ''
+            self.data['dwpt'] = Temperature(dsignm+dwpt,'d°C')
+        self.handled.append('RMK_temp')
 
     def calculate_color(self):
         if ('color' not in self.data or

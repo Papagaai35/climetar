@@ -272,6 +272,7 @@ class Temperature(Quantity):
         'K': [lambda temp_k: temp_k - 273.15,
               lambda temp_c: temp_c + 273.15],
         '°C': 1,
+        'd°C': .1,
         '°F': [lambda temp_f: (temp_f - 32)*(5/9),
               lambda temp_c: temp_c*(9/5) + 32],
         '°R': [lambda temp_r: (temp_r - 491.67)*(5/9),
@@ -288,6 +289,7 @@ class Temperature(Quantity):
 class Pressure(Quantity):
     units = {
         'Pa': 0.01,
+        'daPa': 0.1,
         'hPa': 1,
         'kPa': 10,
         'inHg': 33.8639,
@@ -295,6 +297,12 @@ class Pressure(Quantity):
     }
     storage_unit = 'hPa'
     alias_units = {'A': '10thHg', 'ALSTG': '10thHg', 'Q': 'hPa', 'QNH': 'hPa'}
+    @classmethod
+    def missing_first_digit_daPa(cls,value):
+        value, _ = cls.number_from_str(value)
+        if not pd.isnull(value):
+            value += 9000. if value>=500 else 10000.
+        return cls(value,'daPa')
 
 class Fraction(Quantity):
     units = {
