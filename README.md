@@ -35,6 +35,15 @@ In het eerste notebook `00. Installeren & Introductie.ipynb` wordt ook een korte
    * Kimaatkaart (Köppen-Geiger): Beck, H.E., N.E. Zimmermann, T.R. McVicar, N. Vergopolan, A. Berg, E.F. Wood, (2018); Present and future Köppen-Geiger climate classification maps at 1‑km resolution, Scientific Data 5:180214, [doi:10.1038/sdata.2018.214](https://www.doi.org/10.1038/sdata.2018.214).  
    Data gedownload van [www.gloh2o.org/koppen/](http://www.gloh2o.org/koppen/)
 
+CliMETAR is geschreven in `python3` en LaTeX en maakt gebruik van de packages `numpy`, `pandas`, `matplotlib` en `cartopy`.
 
+## Vragen en Problemen
+Mocht je een vraag hebben over het gebruik van dit pakket, of problemen ondervinden?
 
-CliMETAR is geschreven in `python3` en LaTeX en maakt gebruik van de packages `numpy`, `pandas` `matplotlib`, `sqlite3`, en data van Natural Earth
+Stuur dan een mail naar [dj.gommers@mindef.nl](mailto:dj.gommers@mindef.nl) met:
+ * Wat je probeert te doen;
+ * Voor welke stations/landen;
+ * Voeg het logbestand `climetar.log` als bijlage toe (indien mogelijk);
+ * en Voeg resultaten of screenshots als bijlage toe (indien relevant);
+
+Dan kan ik je het snelste helpen met het probleem.
