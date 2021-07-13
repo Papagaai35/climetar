@@ -1867,24 +1867,32 @@ class CountryFinder(object):
             return
         
         self.countries_with_subunits_seperate = {
-            'ATF': (4,[]),
-            'AUS': (3,['AUM']),
-            'CHL': (4,[]),
-            'ECU': (4,[]),
-            'ESP': (3,['ESC']),
-            'FRA': (3,[]),
-            'IOA': (3,[]),
-            'NLD': (3,[]),
-            'NOR': (3,[]),
-            'NZL': (3,[]),
-            'PRT': (3,[]),
-            'RUS': (3,['RUC']),
-            'SHN': (4,[]),
-            'USA': (4,[]),
-            'ZAF': (4,[])
+            'ATF': (0,4,[],[]),
+            'AUS': (0,3,['AUM'],[]),
+            'CHL': (0,4,[],[]),
+            'ECU': (0,4,[],[]),
+            'ESP': (0,3,['ESC'],[]),
+            'FRA': (3,3,[],[]),
+            'IOA': (0,3,[],[]),
+            'NLD': (3,3,[],[]),
+            'NOR': (0,3,[],[]),
+            'NZL': (0,3,[],[]),
+            'PRT': (0,3,[],[]),
+            'RUS': (0,3,['RUC'],[]),
+            'SHN': (0,4,[],[]),
+            'USA': (0,4,[],[]),
+            'ZAF': (0,4,[],[])
         }
+        self.alliasses = {
+            'NLD': 'NLX',
+            'PRT': 'PRX',
+            'USA': 'USB',
+            'ZAF': 'ZAX'
+        }
+        self.do_search_all = ['ATF','IOA','SHN']
         self.geometries = {}
         self.attributes_df = None
+        self.all_attributes_df = None
         self.get_countries_from_natural_earth()
         
     def get_countries_from_natural_earth(self):
@@ -1906,16 +1914,19 @@ class CountryFinder(object):
                 all_df.loc[(all_df.ADM0_A3==r.ADM0_A3) & (all_df.LEVEL>=3),'geometries'].to_list()
             ))))
         all_df = all_df.sort_values(['LEVEL','ADM0_A3'],ascending=False)
+        
         df = cdf.loc[~cdf.ADM0_A3.isin(list(self.countries_with_subunits_seperate.keys())),:].reset_index(drop=True)
         for i,r in df.iterrows():
             df.loc[i,'geometries'] = r.code if r.geometries=='' else r.geometries
         df = df.sort_values(['LEVEL','ADM0_A3']).reset_index(drop=True)
     
-        for c,(l,e) in self.countries_with_subunits_seperate.items():
-            if len(e)==0:
-                sdf = all_df.loc[(all_df.ADM0_A3==c) & (all_df.LEVEL>=3) & (all_df.LEVEL<=l)]
-            else:
-                sdf = all_df.loc[(all_df.ADM0_A3==c) & (all_df.LEVEL>=3) & ((all_df.LEVEL<=l)|all_df.SU_A3.isin(e))]
+        for c,(low,up,incl,excl) in self.countries_with_subunits_seperate.items():
+            is_child = (all_df.ADM0_A3==c) & (all_df.LEVEL>=low) & (all_df.LEVEL<=up)
+            if len(incl)>0:
+                is_child = is_child | all_df.SU_A3.isin(incl)
+            if len(excl)>0:
+                is_child = is_child & (~all_df.SU_A3.isin(excl))
+            sdf = all_df.loc[is_child]
             sdf = sdf.sort_values(['LEVEL','ADM0_A3'],ascending=False).reset_index(drop=True)
             for i,r in sdf.iterrows():
                 other_row_geometries = sdf.drop(i).geometries.str.split(",").to_list()
@@ -1935,14 +1946,62 @@ class CountryFinder(object):
                 geometries[r.key] = geo_list[0]
         self.geometries = geometries
         self.attributes_df = df
+        
+        all_geometries = {}
+        for i,r in all_df.iterrows():
+            if r.key in self.geometries:
+                continue
+            geo_list = [(cgeom[g[2:]].geometry if g[0]=='c' else ugeom[g[2:]].geometry) for g in r.geometries.split(',')]
+            if len(geo_list)>1:
+                all_geometries[r.key] = shapely.ops.cascaded_union(geo_list)
+            else:
+                all_geometries[r.key] = geo_list[0]
+        self.all_geometries = all_geometries
+        self.all_attributes_df = all_df
+    def __contains__(self,item):
+        code = None
+        try:
+            code = self.resolve_country_code(item)
+        except ValueError:
+            pass
+        return code is not None
+    def resolve_country_code(self,code,search_all=False):
+        country_key = None
+        adf = self.attributes_df
+        if code in self.alliasses.keys():
+            code = self.alliasses[code]
+        if not search_all and code in self.do_search_all:
+            return self.resolve_country_code(code,search_all=True)
+        if search_all:
+            adf = self.all_attributes_df
+        if len(code)==2:
+            if code in adf.ISO_A2.values:
+                country_key = adf.loc[adf.ISO_A2==code].sort_values(['HOMEPART','MAX_LABEL'],ascending=[False,True]).key.iloc[0]
+        else:
+            if code in adf.key.values:
+                country_key = code
+            elif code in adf.ISO_A3.values:
+                country_key = adf.loc[adf.ISO_A3==code].sort_values(['HOMEPART','MAX_LABEL'],ascending=[False,True]).key.iloc[0]
+            elif code in adf.ADM0_A3.values:
+                country_key = adf.loc[adf.ADM0_A3==code].sort_values(['HOMEPART','MAX_LABEL'],ascending=[False,True]).key.iloc[0]
+        if country_key is None:
+            if search_all:
+                raise ValueError('Could not find any country with the code "%s"'%code)
+            return self.resolve_country_code(code,search_all=True)
+        return country_key
+    def get_country_by_code(self,code):
+        country_code = self.resolve_country_code(code)
+        if country_code in self.attributes_df.key.values:
+            return (
+                self.geometries[country_code],
+                self.attributes_df.loc[self.attributes_df.key==country_code].iloc[0].to_dict())
+        return (
+            self.all_geometries[country_code],
+            self.all_attributes_df.loc[self.all_attributes_df.key==country_code].iloc[0].to_dict())
     def find_closest_country(self,lon,lat,country_code=None):
         p = shapely.geometry.Point(lon,lat)
         if country_code is not None:
-            if country_code in self.attributes_df.key:
-                return (
-                    self.geometries[country_code],
-                    self.attributes_df.loc[self.attributes_df.key==country_code].iloc[0].to_dict())
-            raise ValueError('Could not find country %s'%country_code)
+            return self.get_country_by_code(country_code)
         else:
             distances = {}
             for k,c in self.geometries.items():
@@ -1959,6 +2018,10 @@ class CountryFinder(object):
                 self.attributes_df.loc[self.attributes_df.key==closest_country].iloc[0].to_dict())
 
 class MapPlotHelper(object):
+    system_natural_earh_folders = [
+        '/home/datalab/y-schijf/Voorbeelden/NaturalEarth/physical/',
+        '/home/datalab/y-schijf/Voorbeelden/NaturalEarth/cultural/'
+    ]
     @classmethod
     def search_files(cls,basepath,name,exts):
         potential_locations = [
@@ -2003,6 +2066,24 @@ class MapPlotHelper(object):
             if data_path:
                 return data_path
             raise ValueError(f'Zipfile uitgepakt ({zip_path}), maar kon de bestanden niet vinden ({name}.{extstr})')
+        
+        for snef in cls.system_natural_earh_folders:
+            sys_path = cls.search_files(snef,name,exts)
+            if sys_path:
+                sys_name = os.path.splittext(os.path.basename(sys_path))[0]
+                sys_dir = os.path.dirname(sys_path)
+                sys_glob = os.path.join(sys_dir,sys_name+'.*')
+                target_dir = os.path.join(basepath,'natural_earth')
+                if not os.path.exists(target_dir):
+                    pathlib.Path(target_dir).mkdir(parents=True, exist_ok=True)
+                for sys_file in glob.iglob(sys_glob):
+                    new_file = os.path.join(target_dir,os.path.basename(sys_file))
+                    shutil.copy2(sys_file,new_file)
+                data_path = cls.search_files(basepath,name,exts)
+                if data_path:
+                    return data_path
+        
+        
         exts = exts+['zip'] if isinstance(exts,list) else [exts,'zip']
         extstr = '['+','.join(exts)+']'
         raise ValueError(f'Kon de benodigde bestanden niet vinden ({name}.{extstr})')

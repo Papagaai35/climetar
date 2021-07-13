@@ -36,5 +36,6 @@ from .metarfile import MetarFiles, analyse_files, format_period
 from .planetary import Astro
 
 from .metarplot import MetarPlotter
+from .stationmap import StationMapper
 
 _log.debug('CliMETAR imported')

@@ -54,6 +54,15 @@ class StationRepo(object):
             "longitude": station_data['geometry']['coordinates'][0],
             "elevation": station_data['properties']['elevation'],
         }
+    def get_network(self,networkcode):
+        if networkcode not in self.networks:
+            raise KeyError(f"Network '{stationcode}' could not be found")
+        network_data = self.networks[networkcode]
+        return networkcode, {
+            "code": networkcode,
+            "name": network_data['properties']['icao'],
+            "stations": network_data['properties']['stations'],
+        }
 
     def __contains__(self,item):
         return item in self.stations or item in self.aliases
