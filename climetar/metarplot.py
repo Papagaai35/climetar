@@ -510,21 +510,27 @@ class MetarPlotter(object):
         binval = (10**(np.log10(binval)//1))*(.25 if np.log10(binval)%1<.4 else (.5 if np.log10(binval)%1 < 0.7 else 1))
         databinned = self.convert_unit(quantity.units[unit],self.pdf.wind_gust)//binval
         databinned = databinned.groupby(databinned).count()
-        data = dict([(i, databinned[i] if i in databinned.index else 0) for i in range(1,int(databinned.index.max())+1)])
-        data = pd.Series(np.array(list(data.values())), ["{}".format(k*binval-binval) for k in data.keys()] )
-        data = data / len(self.pdf)
+        if len(databinned)==0:
+            _log.warning("Geen windgusts in de metars")
+            ax.set_ylim(0,5)
+            ax.set_xlim(0,50)
+        else:
+            data = dict([(i, databinned[i] if i in databinned.index else 0) for i in range(1,int(databinned.index.max())+1)])
+            data = pd.Series(np.array(list(data.values())), ["{}".format(k*binval-binval) for k in data.keys()] )
+            data = data / len(self.pdf)
 
-        freq_quantity = quantities.Fraction
-        freq_unit = freq_quantity.find_unit(freq_unit)
-        index, values = data.index.values, self.convert_unit(freq_quantity.units[freq_unit],data.values)
-        ax.bar(index,values,align='edge',width=1,**style)
-        thx = values.max()*0.025
-        for i in range(len(data)):
-            ax.text(i+0.5,values[i]+thx,"%3.1f %s"%(values[i],freq_unit),c='k',ha='center',va='bottom')
+            freq_quantity = quantities.Fraction
+            freq_unit = freq_quantity.find_unit(freq_unit)
+            index, values = data.index.values, self.convert_unit(freq_quantity.units[freq_unit],data.values)
+            ax.bar(index,values,align='edge',width=1,**style)
+            thx = values.max()*0.025
+            for i in range(len(data)):
+                ax.text(i+0.5,values[i]+thx,"%3.1f %s"%(values[i],freq_unit),c='k',ha='center',va='bottom')
+            ax.set_ylim(0,(np.ceil((values.max()+thx*3)/0.5)*0.5))
+            ax.set_xlim(*np.array(ax.get_xlim()).round())
         ax.set_ylabel('Frequency [%s]'%freq_unit)
         ax.set_title('Wind Gusts [%s]'%unit)
-        ax.set_ylim(0,(np.ceil((values.max()+thx*3)/0.5)*0.5))
-        ax.set_xlim(*np.array(ax.get_xlim()).round())
+        
     def plot_frequency_cloud_type(self,ax,freq_unit='%'):
         freq_quantity = quantities.Fraction
         freq_unit = freq_quantity.find_unit(freq_unit)
