@@ -53,6 +53,7 @@ class MetarPlotter(object):
         self.countryfinder = None
         self.filters = {}
         self.years = {}
+        self.warnings = []
 
         self._load_locales()
         _log.debug("Loaded MetarPlotter with settings:\n"+json.dumps(settings))
@@ -90,6 +91,7 @@ class MetarPlotter(object):
 
         self.reset_filters()
         self.years = {}
+        self.warnings = []
         _log.debug("Loaded station %s"%station)
     def get_astro(self,station=None,year=None,force=False):
         if force or self.astro is None:
@@ -334,7 +336,15 @@ class MetarPlotter(object):
         m = pd.Series(m,index=s.index).replace({False:np.nan}).ffill(limit=min_number_of_observations-1).fillna(False)
         gps = m.ne(m.shift(1)).cumsum().where(m)
         if gps.isnull().all():
-            return None
+            return pd.DataFrame({
+                'timeStart': pd.Series([], dtype='datetime64[ns]'),
+                'timeEnd': pd.Series([], dtype='datetime64[ns]'),
+                'dates': pd.Series([], dtype='int'),
+                'messages': pd.Series([], dtype='int'),
+                'minutes_valid': pd.Series([], dtype='float'),
+                col+'_min': pd.Series([], dtype='float'),
+                col+'_max': pd.Series([], dtype='float'),
+            })
         return df.groupby(gps).agg(**{
             'timeStart': ('time',min),
             'timeEnd': ('time',max),
@@ -440,17 +450,29 @@ class MetarPlotter(object):
     def _plot_dh_cycle_hoursteps(self,ax,variable,unit,quantity,title='',ylim=None,style=None):
         style = style if style is not None else self.theme.get_ci()
         unit = quantity.find_unit(unit)
-
-        gbo = self.pdf.dropna(subset=[variable]).groupby(self.pdf.time.dt.hour)
-        data = gbo[variable].quantile([.01,.05,.25,.5,.75,.95,.99])
-        data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.iloc[0].rename(24))
-        ax.plot(data[.5],**style[0])
-        ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
-        ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,**style[2])
-        ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
-        ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
-        ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
+        var_human = title.lower()
+        
+        if pd.isnull(self.pdf[variable]).all():
+            if ('dh_'+variable) not in self.warnings:
+                _log.warning(f"Geen data voor {var_human} in de metars")
+                self.warnings.append('dh_'+variable)
+            ax.text(0.5,0.5,f"{self.station} heeft\ngeen {var_human} geregistreed\nin deze maand",
+                    horizontalalignment='center',verticalalignment='center',
+                    transform=ax.transAxes,c='k')
+            ax.set_xlim(0,24)
+            if ylim is None:
+                ax.set_ylim(0,10)
+        else:
+            gbo = self.pdf.dropna(subset=[variable]).groupby(self.pdf.time.dt.hour)
+            data = gbo[variable].quantile([.01,.05,.25,.5,.75,.95,.99])
+            data = self.convert_unit(quantity.units[unit],data).unstack()
+            data = data.append(data.iloc[0].rename(24))
+            ax.plot(data[.5],**style[0])
+            ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
+            ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,**style[2])
+            ax.fill_between(x=data.index,y1=data[.75],y2=data[.95],zorder=-1,**style[2])
+            ax.fill_between(x=data.index,y1=data[.01],y2=data[.05],zorder=-1,**style[3])
+            ax.fill_between(x=data.index,y1=data[.95],y2=data[.99],zorder=-1,**style[3])
         ax.set_xticks([0,6,12,18,24]);
         ax.set_xticks([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],minor=True);
         begin, end = self.get_filter_minmax('hour')
@@ -460,45 +482,45 @@ class MetarPlotter(object):
         if ylim is not None:
             ax.set_ylim(*ylim)
         ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%dh"))
-        ax.set_title(title)
+        ax.set_title(title+f" [{unit:s}]")
     def plot_dh_cycle_temp(self,ax,unit='°C'):
         style = self.theme.get_ci("temp")
-        self._plot_dh_cycle_hoursteps(ax,'temp',title='Temperature [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'temp',title='Temperature',
             unit=unit,quantity=quantities.Temperature,style=style)
     def plot_dh_cycle_dwpc(self,ax,unit='°C'):
         style = self.theme.get_ci("dwpc")
-        self._plot_dh_cycle_hoursteps(ax,'dwpt',title='Dew Point [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'dwpt',title='Dew Point',
             unit=unit,quantity=quantities.Temperature,style=style)
     def plot_dh_cycle_relh(self,ax,unit='%'):
         style = self.theme.get_ci("relh")
         quantity = quantities.Fraction
         unit = quantity.find_unit(unit)
-        self._plot_dh_cycle_hoursteps(ax,'relh',title='Relative Humidity [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'relh',title='Relative Humidity',
             ylim=(0,quantities.Fraction(1,'frac')[unit]),
             unit=unit,quantity=quantity,style=style)
     def plot_dh_cycle_wspd(self,ax,unit='kt'):
         style = self.theme.get_ci("wind")
-        self._plot_dh_cycle_hoursteps(ax,'wind_spd',title='Wind speed [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'wind_spd',title='Wind speed',
             ylim=(0,None),unit=unit,quantity=quantities.Speed,style=style)
     def plot_dh_cycle_vism(self,ax,unit='km'):
         style = self.theme.get_ci("vism")
         quantity = quantities.Distance
         unit = quantity.find_unit(unit)
-        self._plot_dh_cycle_hoursteps(ax,'vis',title='Visibility [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'vis',title='Visibility',
             ylim=(0,quantities.Distance(10,'km')[unit]),
             unit=unit,quantity=quantity,style=style)
     def plot_dh_cycle_ceiling(self,ax,unit='ft'):
         style = self.theme.get_ci("ceiling")
         quantity = quantities.Height
         unit = quantity.find_unit(unit)
-        self._plot_dh_cycle_hoursteps(ax,'sky_ceiling',title='Cloud base [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'sky_ceiling',title='Cloud base',
             ylim=(0,quantities.Height(5e3,'ft')[unit]),
             unit=unit,quantity=quantity,style=style)
     def plot_dh_cycle_pres(self,ax,unit='hPa'):
         style = self.theme.get_ci("pres")
         quantity = quantities.Pressure
         unit = quantity.find_unit(unit)
-        self._plot_dh_cycle_hoursteps(ax,'pres',title='Surface Pressure [%s]'%unit,
+        self._plot_dh_cycle_hoursteps(ax,'pres',title='Surface Pressure',
             ylim=(quantity(950,'hPa')[unit],quantity(1050,'hPa')[unit]),
             unit=unit,quantity=quantity,style=style)
     def plot_frequency_gust(self,ax,unit='kt',freq_unit='%'):
@@ -511,7 +533,12 @@ class MetarPlotter(object):
         databinned = self.convert_unit(quantity.units[unit],self.pdf.wind_gust)//binval
         databinned = databinned.groupby(databinned).count()
         if len(databinned)==0:
-            _log.warning("Geen windgusts in de metars")
+            if 'gust' not in self.warnings:
+                _log.warning("Geen windgusts in de metars")
+                self.warnings.append('gust')
+            ax.text(0.5,0.5,f"{self.station} heeft\ngeen windvlagen geregistreed\nin deze maand",
+                    horizontalalignment='center',verticalalignment='center',
+                    transform=ax.transAxes,c='k')
             ax.set_ylim(0,5)
             ax.set_xlim(0,50)
         else:
@@ -556,7 +583,7 @@ class MetarPlotter(object):
             calculated = True
         if len(data)==0:
             ax.bar(['BLU','WHT','GRN','YLO','AMB','RED'],[0,0,0,0,0,0],color='ḱ')
-            ax.text(0.5,0.5,f"{self.STATION} does not publish\nNATO color states",
+            ax.text(0.5,0.5,f"{self.station} publiceerd geen\nNATO color states",
                     horizontalalignment='center',verticalalignment='center',
                     transform=ax.transAxes,c='k')
             ax.set_ylim(0,10)
@@ -593,7 +620,7 @@ class MetarPlotter(object):
         norm = self.convert_unit(freq_quantity.units[freq_unit],1.)/len(self.pdf)
         if precipdf.shape[0]<1:
                 ax.bar(['RA','DZ','SN','IC','PL','GR','GS','UP'],[0,0,0,0,0,0,0,0],color='#000000')
-                ax.text(0.5,0.5,f"{self.STATION} registerd no precipitation in this month",
+                ax.text(0.5,0.5,f"{self.station} heeft\ngeen neerslag geregistreed\nin deze maand",
                         horizontalalignment='center',verticalalignment='center',
                         transform=ax.transAxes,c='k')
                 ax.set_ylim(0,10)
