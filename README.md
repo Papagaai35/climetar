@@ -22,6 +22,8 @@ git clone https://git.mindef.nl/djgommers/climetar.git
 ```
 5. Na enkele momenten verschijnt er links in de zijbalk een map `climetar`. Open deze map en open het notebook `00. Installeren & Introductie.ipynb` (dmv dubbelklik)
 
+Mocht je hierin een foutje hebben gemaakt, volg dan de stappen uit [Uninstall.md](resources/Uninstall.md).
+
 In het eerste notebook `00. Installeren & Introductie.ipynb` wordt ook een korte introductie gegeven op Jupyter. Voor meer info:
 * [Jupyter binnen Defensie](https://confluence.kixs.mindef.nl/display/OP/JupyterLab) (MULAN)
 * [JupyterLab Documentatie](https://jupyterlab.readthedocs.io) (via Internet op de Werkplek; Engels)
