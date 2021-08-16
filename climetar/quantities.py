@@ -53,7 +53,7 @@ class Quantity(object):
             'ascii', 'ignore').decode("utf-8").lower(),
     ]
 
-    def __init__(self,value,unit=None,default_unit=None):
+    def __init__(self,value,unit=None,default_unit=None,validate=None):
         self.orig = value,unit
         self.value = np.nan
         self.greater = 0
@@ -72,6 +72,9 @@ class Quantity(object):
         if not (isinstance(value, numbers.Real) or unit in self.nonnumeric):
             value, self.greater = self.number_from_str(value)
         self.value = self.convert_from(value,unit)
+        
+        if callable(validate) and not validate(self.value):
+            self.value = np.nan        
 
     def __float__(self):
         val = self.value + self.greater

@@ -70,9 +70,9 @@ class Metar(object):
             )
         ) \s+"""
     _regexes['temp'] = r"""^
-        (?P<temp>(M|-)?[\dO]+|//|XX|MM)
+        (?P<temp>(M|-)?[\dO]{,2}|//|XX|MM)
         /
-        (?P<dwpt>(M|-)?[\dO]+|//|XX|MM)? \s+"""
+        (?P<dwpt>(M|-)?[\dO]{,2}|//|XX|MM)? \s+"""
     _regexes['pres'] = r"""^
         (?P<unit>A|Q|QNH|ALSTG)
         (?P<p>[\dO]{3,5}|////)
@@ -381,8 +381,8 @@ class Metar(object):
         self.data['sky_cover'] = list(self._cloud_cover_codes.keys())[list(self._cloud_cover_codes.values()).index(self.data['sky_cover_index'])]
         self.handled.append('sky')
     def handle_temp(self):
-        self.data['temp'] = Temperature(self.elements.get('temp_temp'),'°C')
-        self.data['dwpt'] = Temperature(self.elements.get('temp_dwpt'),'°C')
+        self.data['temp'] = Temperature(self.elements.get('temp_temp'),'°C',validate=lambda x: abs(x)<100)
+        self.data['dwpt'] = Temperature(self.elements.get('temp_dwpt'),'°C',validate=lambda x: abs(x)<100)
         self.handled.append('temp')
     def handle_pres(self):
         self.data['pres'] = Pressure(self.elements.get('pres_p'),self.elements.get('pres_unit','Q'))
