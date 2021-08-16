@@ -667,14 +667,28 @@ class MetarPlotter(object):
         s = sigwxdf.sum()
         s = s.loc[s>0].sort_values(ascending=False)
         norm = self.convert_unit(freq_quantity.units[freq_unit],1.)/len(self.pdf)
+        
+        if sigwxdf.shape[0]<1:
+                ax.bar(['TS','FZ','SH','FG',
+                        'VA','BR','HZ','DU',
+                        'FU','SA','PY','SQ',
+                        'PO','DS','SS','FC'],
+                       [0,0,0,0,
+                        0,0,0,0,
+                        0,0,0,0,
+                        0,0,0,0],color='#000000')
+                ax.text(0.5,0.5,f"{self.station} heeft\ngeen bijzonder weer geregistreed\nin deze maand",
+                        horizontalalignment='center',verticalalignment='center',
+                        transform=ax.transAxes,c='k')
+                ax.set_ylim(0,10)
+        else:
+            style = self.theme.get_setT("bar.sigwx",indexes=s.index)
 
-        style = self.theme.get_setT("bar.sigwx",indexes=s.index)
-
-        ax.bar(s.index,s.values*norm,**style)
-        thx = s.max()*norm*0.05
-        for i in range(len(s)):
-            ax.text(i,s.iloc[i]*norm+thx,"%3.1f %s"%(s.iloc[i]*norm,freq_unit),c='k',ha='center',va='bottom')
-        ax.set_ylim(0,((s.max()*norm+thx*3)//2+1)*2)
+            ax.bar(s.index,s.values*norm,**style)
+            thx = s.max()*norm*0.05
+            for i in range(len(s)):
+                ax.text(i,s.iloc[i]*norm+thx,"%3.1f %s"%(s.iloc[i]*norm,freq_unit),c='k',ha='center',va='bottom')
+            ax.set_ylim(0,((s.max()*norm+thx*3)//2+1)*2)
         ax.set_title('Significant Weather');
         ax.set_ylabel('Frequency [%s]'%freq_unit)
 
