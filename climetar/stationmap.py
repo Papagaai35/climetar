@@ -16,6 +16,27 @@ from .svgpath2mpl import parse_path
 from .metarplot import MapPlotHelper, CountryFinder, mplLegendSubheading, mplLegendSubheadingHandler
 from . import StationRepo
 
+class ProvinceFinder():
+    def __init__(self,**settings):
+        try:
+            StationMapper.import_modules()
+        except ModuleNotFoundError as err:
+            _log.error(repr(err)+'\nInstalleer opnieuw de packages via "00. Instaleren & Introductie.ipynb"',exc_info=err)
+            _log.info('Kaart niet geplot...')
+            return
+        
+        self.ne_files = settings.get('natural_earth','./resources/')
+        shpf = MapPlotHelper.search_or_extract(self.ne_files,'ne_50m_admin_1_states_provinces','shp')
+        self.geom, self.df = MapPlotHelper.shape_to_dataframe('iso_3166_2',shpf)
+    def __contains__(self,key):
+        return key in self.geom
+    def get_province(self,key):
+        if key in self.df.key.values:
+            return (
+                self.geom[key].geometry,
+                self.df.loc[self.df.key==key].iloc[0].to_dict()
+            )
+        raise KeyError('No province with that key available')
 
 class StationMapper(object):
     @classmethod
@@ -60,6 +81,7 @@ class StationMapper(object):
         self.trans = cartopy.crs.PlateCarree()
         self.station_repo = StationRepo()
         self.countryfinder = CountryFinder(natural_earth=self.ne_files)
+        self.provincefinder = ProvinceFinder(**settings)
         self.koppen = None
         if os.path.isfile(self.style):
             plt.style.use(self.style)
@@ -88,6 +110,11 @@ class StationMapper(object):
                 name = attrs['NAME']
                 focus_objs.append((geom,attrs,'country'))
                 _log.debug(f'Focus on country {fp:s} {name:s}')
+            elif len(fp)==5 and '-' in fp and fp in self.provincefinder:
+                geom,attrs = self.provincefinder.get_province(fp)
+                name = attrs['name']
+                focus_objs.append((geom,attrs,'province'))
+                _log.debug(f'Focus on province {fp:s} {name:s}')
             elif fp in self.station_repo:
                 s, sd = self.station_repo.get_station(fp)
                 shp = shapely.geometry.shape(self.station_repo.stations[s]['geometry'])
@@ -108,7 +135,6 @@ class StationMapper(object):
             nameid = next((i for i, n in enumerate(names) if n!=''), None)
             if nameid is not None:
                 focus_names.append(names[nameid])
-            
             if 'Point' == geom.geom_type:
                 points.append(geom)
             else:
