@@ -85,15 +85,19 @@ class StationMapper(object):
             fpobj = None
             if len(fp) in [2,3] and fp in self.countryfinder:
                 geom,attrs = self.countryfinder.get_country_by_code(fp)
+                name = attrs['NAME']
                 focus_objs.append((geom,attrs,'country'))
+                _log.debug(f'Focus on country {fp:s} {name:s}')
             elif fp in self.station_repo:
                 s, sd = self.station_repo.get_station(fp)
                 shp = shapely.geometry.shape(self.station_repo.stations[s]['geometry'])
                 focus_objs.append((shp,sd,'station'))
+                _log.debug(f'Focus on station {fp:s}')
             elif fp in self.station_repo.networks:
                 n, nd = self.station_repo.get_network(fp)
                 shp = shapely.geometry.shape(self.station_repo.stations[n]['geometry'])
                 focus_objs.append((shp,nd,'network'))
+                _log.debug(f'Focus on network {fp:s}')
             else:
                 _log.warning(f'Kon geen station, netwerk of land vinden met de code {fp:s}')
         
@@ -239,7 +243,7 @@ class StationMapper(object):
         dlat = np.max([.1,np.abs(self.center_lat-latmin),np.abs(self.center_lat-latmax)])
         self.zoom = np.clip(0.95*np.min([15/dlon,10/dlat]),.2,6)
     def get_extent(self):
-        if self.zoom<.4:
+        if self.zoom<.2:
             return [-180,180,90,-90]
         return [
             self.center_lon-(15/self.zoom),
@@ -256,7 +260,7 @@ class StationMapper(object):
             lonmax = np.nanmax(np.where(polygon_bounds[:,2]<179,polygon_bounds[:,2],np.nan)+360)
         return lonmin, lonmax, latmin, latmax
     def set_extent_to_map(self):
-        if self.zoom>=.4:
+        if self.zoom>=.2:
             self.ax.set_extent(self.get_extent(),crs=self.trans)
     
     # Map Features (borders e.d.)
