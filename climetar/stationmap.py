@@ -83,7 +83,10 @@ class StationMapper(object):
         focus_objs = []
         for fp in focus_points:
             fpobj = None
-            if fp in self.station_repo:
+            if len(fp) in [2,3] and fp in self.countryfinder:
+                geom,attrs = self.countryfinder.get_country_by_code(fp)
+                focus_objs.append((geom,attrs,'country'))
+            elif fp in self.station_repo:
                 s, sd = self.station_repo.get_station(fp)
                 shp = shapely.geometry.shape(self.station_repo.stations[s]['geometry'])
                 focus_objs.append((shp,sd,'station'))
@@ -91,9 +94,6 @@ class StationMapper(object):
                 n, nd = self.station_repo.get_network(fp)
                 shp = shapely.geometry.shape(self.station_repo.stations[n]['geometry'])
                 focus_objs.append((shp,nd,'network'))
-            elif len(fp) in [2,3] and fp in self.countryfinder:
-                geom,attrs = self.countryfinder.get_country_by_code(fp)
-                focus_objs.append((geom,attrs,'country'))
             else:
                 _log.warning(f'Kon geen station, netwerk of land vinden met de code {fp:s}')
         
