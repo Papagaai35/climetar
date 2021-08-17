@@ -235,13 +235,9 @@ class StationMapper(object):
     # Zoom and Extent
     def calc_zoom(self):
         lonmin, lonmax, latmin, latmax = self.focus_extent
-        self.zoom = np.clip(
-            0.95*np.min([
-                15/np.abs(self.center_lon-lonmin),
-                15/np.abs(self.center_lon-lonmax),
-                10/np.abs(self.center_lat-latmin),
-                10/np.abs(self.center_lat-latmax),
-            ]),.2,6)
+        dlon = np.max([.1,np.abs(self.center_lon-lonmin),np.abs(self.center_lon-lonmax)])
+        dlat = np.max([.1,np.abs(self.center_lat-latmin),np.abs(self.center_lat-latmax)])
+        self.zoom = np.clip(0.95*np.min([15/dlon,10/dlat]),.2,6)
     def get_extent(self):
         if self.zoom<.4:
             return [-180,180,90,-90]
