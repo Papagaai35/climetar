@@ -436,7 +436,7 @@ class Metar(object):
             tsignm = '-' if tsign is not None and tsign=='1' else ''
             self.data['temp'] = Temperature(tsignm+temp,'d°C')
         if dwpt is not None and dwpt!='':
-            dsign = self.elements.get('RMK_temp_tsign')
+            dsign = self.elements.get('RMK_temp_dsign')
             dsignm = '-' if dsign is not None and dsign=='1' else ''
             self.data['dwpt'] = Temperature(dsignm+dwpt,'d°C')
         self.handled.append('RMK_temp')
