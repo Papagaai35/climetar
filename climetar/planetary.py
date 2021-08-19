@@ -290,12 +290,12 @@ class Astro(object):
             from_tz = 'Etc/UTC' if from_tz is None else from_tz
             series = series.dt.tz_localize(from_tz)
         return series.dt.tz_convert(to_tz).dt.tz_localize(None)
-    def solar_calculate_dawndusk(self,opt_itermax=10,opt_diffmax_s=1):
+    def solar_calculate_dawndusk(self,opt_itermax=100,opt_diffmax_s=1):
         _log.debug("Calculating solar_dawndusk")
         opt_diffmax = opt_diffmax_s/86400
         dates = pd.date_range(
             pd.Timestamp(min(self.unix),unit='s'),
-            pd.Timestamp(max(self.unix)+1,unit='s'),
+            pd.Timestamp(max(self.unix)+86401,unit='s'),
             freq='H')
         julian2000, time_frac = self.pdtimestamp_to_julian(dates)
         JDmin, JDmax = self.pdtimestamp_to_julian(dates.to_series().iloc[[0,-1]])[0]
@@ -361,7 +361,7 @@ class Astro(object):
             sdf[name] = self.julian_to_pdtimestamp(JDdusk_new,opt_diffmax_s).values
         return pd.DataFrame(sdf), sds
 
-    def solar_dawndusk(self):
+    def solar_dawndusk_old(self):
         sdf, sds = self.solar_calculate_dawndusk()
 
         for col in sdf.columns:
@@ -378,21 +378,78 @@ class Astro(object):
             #df.loc[~df[col].between(df.date.min(),df.date.max()),col] = np.nan
             pass
         return df.iloc[:-1,:], sds
+    
+    def solar_dawndusk(self):
+        sdf, sds = self.solar_calculate_dawndusk()
+
+        for col in sdf.columns:
+            sdf[col] = self.convert_tz(sdf[col],self.tz)
+        
+        sdfi = sdf.reset_index()
+        sdfidx = sdfi.assign(
+            astronomical_dawn_d=(sdf.astronomical_dawn-sdf.date).dt.total_seconds().abs(),
+            nautical_dawn_d=(sdf.nautical_dawn-sdf.date).dt.total_seconds().abs(),
+            civil_dawn_d=(sdf.civil_dawn-sdf.date).dt.total_seconds().abs(),
+            sunrise_d=(sdf.sunrise-sdf.date).dt.total_seconds().abs(),
+            noon_d=(sdf.noon-sdf.date).dt.total_seconds().abs(),
+            sunset_d=(sdf.sunset-sdf.date).dt.total_seconds().abs(),
+            civil_dusk_d=(sdf.civil_dusk-sdf.date).dt.total_seconds().abs(),
+            nautical_dusk_d=(sdf.nautical_dusk-sdf.date).dt.total_seconds().abs(),
+            astronomical_dusk_d=(sdf.astronomical_dusk-sdf.date).dt.total_seconds().abs(),
+        ).groupby(sdf.date.dt.normalize()).agg({
+            'astronomical_dawn_d':'idxmin',
+            'nautical_dawn_d':'idxmin',
+            'civil_dawn_d':'idxmin',
+            'sunrise_d':'idxmin',
+            'noon_d':'idxmin',
+            'sunset_d':'idxmin',
+            'civil_dusk_d':'idxmin',
+            'nautical_dusk_d':'idxmin',
+            'astronomical_dusk_d':'idxmin',
+        })
+        SDF = pd.DataFrame({
+                'astronomical_dawn': sdfi.loc[sdfidx['astronomical_dawn_d'].values,'astronomical_dawn'].values,
+                'nautical_dawn': sdfi.loc[sdfidx['nautical_dawn_d'].values,'nautical_dawn'].values,
+                'civil_dawn': sdfi.loc[sdfidx['civil_dawn_d'].values,'civil_dawn'].values,
+                'sunrise': sdfi.loc[sdfidx['sunrise_d'].values,'sunrise'].values,
+                'noon': sdfi.loc[sdfidx['noon_d'].values,'noon'].values,
+                'sunset': sdfi.loc[sdfidx['sunset_d'].values,'sunset'].values,
+                'civil_dusk': sdfi.loc[sdfidx['civil_dusk_d'].values,'civil_dusk'].values,
+                'nautical_dusk': sdfi.loc[sdfidx['nautical_dusk_d'].values,'nautical_dusk'].values,
+                'astronomical_dusk': sdfi.loc[sdfidx['astronomical_dusk_d'].values,'astronomical_dusk'].values,
+            },index=sdfidx.index).reset_index()
+        for col in ['astronomical_dawn','nautical_dawn','civil_dawn','sunrise','sunset','civil_dusk','nautical_dusk','astronomical_dusk']:
+            SDF.loc[~SDF[col].between(SDF.date,SDF.date+pd.Timedelta('1 day')),col] = np.nan
+            pass
+        return SDF.iloc[:-1,:], sds
 
     def solar_matrix(self):
         _log.debug("Calculating solar_dawndusk matrix")
         sdf, sds = self.solar_dawndusk()
         div = pd.date_range(sdf.date.min(),sdf.date.min()+pd.Timedelta('1 day'),freq='min')[:-1].shape[0]
-        dates = pd.date_range(sdf.date.min(),sdf.date.max(),freq='min')[:-1].values[:,None]
+        dates = pd.date_range(sdf.date.min(),
+                              sdf.date.max()+pd.Timedelta('1 day'),freq='min')[:-1].values[:,None]
         target_shape = dates.shape[0]//div,div
 
         start_data = solar_calculations(
             self.lat,self.lon,*self.pdtimestamp_to_julian(
                 self.convert_tz(sdf.date.iloc[[0]],'UTC',self.tz)
             ))
-        start_val = np.digitize(start_data['RA_right_ascension'],
+        start_val_old = np.digitize(start_data['RA_right_ascension'],
             np.array([-np.inf]+list(self.solar_twilights.values())+[np.inf])
         )-1
+        
+        start_df = pd.concat([
+            sdf.astronomical_dawn.to_frame().rename(columns={'astronomical_dawn':'time'}).assign(event=0),
+            sdf.nautical_dawn.to_frame().rename(columns={'nautical_dawn':'time'}).assign(event=1),
+            sdf.civil_dawn.to_frame().rename(columns={'civil_dawn':'time'}).assign(event=2),
+            sdf.sunrise.to_frame().rename(columns={'sunrise':'time'}).assign(event=3),
+            sdf.sunset.to_frame().rename(columns={'sunset':'time'}).assign(event=-4),
+            sdf.civil_dusk.to_frame().rename(columns={'civil_dusk':'time'}).assign(event=-3),
+            sdf.nautical_dusk.to_frame().rename(columns={'nautical_dusk':'time'}).assign(event=-2),
+            sdf.astronomical_dusk.to_frame().rename(columns={'astronomical_dusk':'time'}).assign(event=-1),
+        ]).reset_index().sort_values('time')
+        start_val = np.abs(start_df.iloc[0,2])
         udall = np.full(target_shape,start_val)
 
         for p, twilight in enumerate(self.solar_twilights.keys()):
@@ -403,7 +460,7 @@ class Astro(object):
             dusk_before_dawn = (dusk<dawn).astype(int)
             updown = (after_dawn-after_dusk).reshape(*target_shape)
             udall += updown
-        return  udall, sdf, sds
+        return  udall[1:,:], sdf, sds
 
     def lunar_calculate_dawndusk(self,opt_itermax=100,opt_diffmax_s=1):
         _log.debug("Calculating lunar_dawndusk")
