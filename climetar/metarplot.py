@@ -827,7 +827,7 @@ class MetarPlotter(object):
         d2m = self.convert_unit(quantity.units['°C'],self.pdf.dwpt)
         vp_hPa = 6.112 * np.exp((17.67*d2m)/(d2m+243.5))
         #self.pdf['wbgt'] = 0.657 * t2m + 0.393 * vp_hPa + 3.94
-        self.pdf['wbgt'] = 1.1 + 0.66 * t2m + 0.29 * vp_hPa
+        self.pdf['wbgt'] = (1.1 + 0.66 * t2m + 0.29 * vp_hPa).where(t2m>d2m)
 
         dailydata = self.pdf.groupby(self.pdf.time.dt.date).agg(wbgt=('wbgt','max')).reset_index()
         dailydata['time'] = pd.to_datetime(dailydata.time,dayfirst=True)
