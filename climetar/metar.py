@@ -62,9 +62,9 @@ class Metar(object):
     _regexes['sky'] = r"""^
         (?:
             (?P<clear>CLR|SKC|SCK|NSC|NCD)
-            |(?P<obscured>VV)
+            |(?P<obscured>VV|OBS)
             |(?:
-                (?P<cover>VV|BKN|SCT|FEW|[O0]VC|///)\s*?
+                (?P<cover>VV|OBS|BKN|SCT|FEW|[O0]VC|///)\s*?
                 (?P<height>[\dO]{2,4}|///)\s*
                 (?P<cloud>CB|TCU|/+)?
             )
@@ -132,7 +132,7 @@ class Metar(object):
         (?P<dwpt>\d\d\d))?
         \s+"""
 
-    _cloud_cover_codes = {'SKC':-3,'NCD':-2,'CLR':-1,'NSC':0,'FEW':1,'SCT':3,'BKN':5,'OVC':8,'VV':9}
+    _cloud_cover_codes = {'SKC':-3,'NCD':-2,'CLR':-1,'NSC':0,'FEW':1,'SCT':3,'BKN':5,'OVC':8,'OBS':9,'VV':9}
     _color_codes = {'BLU':0,'WHT':1,'GRN':2,'YLO':3,'YLO1':4,'YLO2':5,'AMB':6,'RED':7}
     _regex_unparsed = r'^(?P<metar>.+?)(?P<trend>\s*(?:$|(?:[TY]EMPO|BECMG|NOSII?G|FCST|PROB\d\d).*$))'
     _multigroups = ['rvr','wx','sky','color',]
