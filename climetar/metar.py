@@ -43,7 +43,7 @@ class Metar(object):
     _regexes['rvr'] = r"""^
         (?P<rwyname>R(?:[\dO]{2}|[/M]{2})[CLR]{0,2})
         /
-        (?P<rvrlow>[MP]?(?:[\dO]{3,5}|[/M]{4}))
+        (?P<rvrlow>[MP]?(?:[\dO]{3,5}|[/M]{3,4}))
         (?:
             V
             (?P<rvrhigh>[MP]?(?:[\dO]{3,5}|[/M]{4}))
