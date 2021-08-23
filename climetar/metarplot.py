@@ -2156,6 +2156,7 @@ class MapPlotHelper(object):
         return img_extent,img_da
     @classmethod
     def shape_to_dataframe(cls,key,shapefile):
+        MetarPlotter.prepare_maps()
         shpr = cartopy.io.shapereader.Reader(shapefile)
         data = {}
         geom = {}

@@ -26,7 +26,7 @@ class ProvinceFinder():
             return
         
         self.ne_files = settings.get('natural_earth','./resources/')
-        shpf = MapPlotHelper.search_or_extract(self.ne_files,'ne_50m_admin_1_states_provinces','shp')
+        shpf = MapPlotHelper.search_or_extract(self.ne_files,'ne_10m_admin_1_states_provinces','shp')
         self.geom, self.df = MapPlotHelper.shape_to_dataframe('iso_3166_2',shpf)
     def __contains__(self,key):
         return key in self.geom
@@ -110,7 +110,7 @@ class StationMapper(object):
                 name = attrs['NAME']
                 focus_objs.append((geom,attrs,'country'))
                 _log.debug(f'Focus on country {fp:s} {name:s}')
-            elif len(fp)==5 and '-' in fp and fp in self.provincefinder:
+            elif len(fp)>=4 and '-' in fp and fp in self.provincefinder:
                 geom,attrs = self.provincefinder.get_province(fp)
                 name = attrs['name']
                 focus_objs.append((geom,attrs,'province'))
