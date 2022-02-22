@@ -11,7 +11,7 @@ Ondanks dat de ontwikkeling van CliMETAR in een vergevorderd statium is, moeten 
 * [ ] Script om de datakwaliteit & -kwantiteit van een bepaald station inzichtelijk te maken.
 
 ## Gebruik
-CliMETAR kan gebruikt worden in de JupyterHub-omgeving van het JIVC KIXS Datalab.
+CliMETAR kan gebruikt worden in eeh Jupyter-omgeving, zoals [mybinder.org](https://mybinder.org/) .
 
 1. Ga naar Jupyter.
 2. Kies voor de **Machine Learning**-omgeving, en klik op de 'Aanmaken'-knop onderaan de pagina.
