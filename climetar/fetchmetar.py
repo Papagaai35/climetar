@@ -126,7 +126,7 @@ class MetarFetcher(object):
         uri = 'https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?' + urlp
 
         printurl = False
-        if self.is_connected(uri) and False:
+        if self.is_connected(uri):
             filename, filemode = self.path_check(filename,overwrite)
             print('Bestand downloaden...',end='\r',flush=True)
             try:
@@ -144,8 +144,8 @@ class MetarFetcher(object):
         else:
             printurl = True
             _log.warning('Geen internetverbining gedetecteerd.\n'
-                'Waarschijnlijk maak je gebruik van een netwerk zonder internet, zoals MULAN.\n'
-                'In dat geval kun je gebruik maken van Internet op de Werkplek (https://iodwwerkplek.mindef.nl/)')
+                'Waarschijnlijk maak je gebruik van een netwerk zonder internet.\n'
+                'In dat geval kun je gebruik maken van Internet.)')
         if printurl:
             print()
             _log.info('Download het bestand van de volgende website, en sla deze op in de map "downloads". '

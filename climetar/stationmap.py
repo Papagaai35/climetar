@@ -45,7 +45,6 @@ class StationMapper(object):
         import cartopy
         import shapely
         import shapely.ops
-        os.environ['REQUESTS_CA_BUNDLE'] = 'resources/mindef-ca-temp.cer' #ivm HTTPS Mapproxy
         
     @classmethod
     def marker_plane(cls):
@@ -232,10 +231,8 @@ class StationMapper(object):
             plt.close()
     def plotset_relief(self,savefig=None):
         self._prepare_plotset()
-        self.ax.add_wmts(
-            'https://dgeo.mindef.nl/img/rest/services/Elevation/DGeo_World_ShadedRelief/ImageServer/WMTS',
-            'Elevation_DGeo_World_ShadedRelief',
-            zorder=0)
+        #self.ax.add_wmts(
+        #    zorder=0)
         self.plot_stations()
         self.country_borders(edgecolor='k')
         self.finalize_map()

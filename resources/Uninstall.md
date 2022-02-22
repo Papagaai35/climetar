@@ -3,7 +3,7 @@ Dit bestand geeft instructies om de hele omgeving te verwijderen en opnieuw te k
 
 
 ## Climetar verwijderen
-1. Ga naar [jupyter.mindef.nl](https://jupyter.mindef.nl/) (via mulan), en log in.
+1. Ga naar Jupyter.
 2. Klik in het linker-menu op "+"
 3. Op het scherm dat verschijnt, kies Terminal
 4. Tik de volgende opdracht in, en druk op <b>Enter</b>:
