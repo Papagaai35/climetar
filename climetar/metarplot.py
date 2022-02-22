@@ -564,7 +564,7 @@ class MetarPlotter(object):
         data = self.pdf.groupby('sky_cover')['minutes_valid'].sum().reindex(metar.Metar._cloud_cover_codes.keys()).dropna()
         data = data / self.pdf.minutes_valid.sum()
         index, values = data.index.values, self.convert_unit(freq_quantity.units[freq_unit],data.values)
-
+        
         style = self.theme.get_setT("bar.cloud",indexes=index)
         ax.bar(index, values, **style)
         thx = values.max()*0.05
@@ -1062,8 +1062,10 @@ class MetarPlotter(object):
         data = self.pdf.groupby([self.pdf.time.dt.month,self.pdf.sky_cover])['minutes_valid'].sum().unstack()
         data = np.divide(data,data.sum(axis=1).values[:,None]).reindex(metar.Metar._cloud_cover_codes.keys(),axis=1)
         clear_index = data[['SKC','NCD','CLR','NSC']].sum().idxmax()
+        obs_index = data[['OBS','VV']].sum().idxmax()
         data[clear_index] = data[['SKC','NCD','CLR','NSC']].sum(axis=1)
-        data = data[reversed([clear_index,'FEW','SCT','BKN','OVC','VV'])]
+        data[obs_index] = data[['OBS','VV']].sum(axis=1)
+        data = data[reversed([clear_index,'FEW','SCT','BKN','OVC',obs_index])]
         data = self.convert_unit(freq_quantity.units[freq_unit],data)
         begin = data.cumsum(axis=1).shift(1,axis=1).fillna(0)
         colums = data.index.values
@@ -1858,7 +1860,7 @@ class MetarPlotter(object):
             cwd=dirname)
         for file in os.listdir(dirname):
             filepath = os.path.join(dirname,file)
-            if os.path.isfile(filepath) and not filepath.endswith(".pdf"):
+            if os.path.isfile(filepath) and not filepath.endswith(".pdf") and not filepath.endswith(".png"):
                 os.remove(filepath)
     def generate_monthly_pdf(self):
         msg = f'Figuren {self.station}: '
