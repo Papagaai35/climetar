@@ -102,10 +102,13 @@ class StationMapper(object):
         if isinstance(focus_points,str):
             focus_points = [focus_points]
         
+        preset_zoom = None
         focus_objs = []
         for fp in focus_points:
             fpobj = None
-            if len(fp) in [2,3] and fp in self.countryfinder:
+            if isinstance(fp,int) or isinstance(fp,float):
+                preset_zoom = fp
+            elif len(fp) in [2,3] and fp in self.countryfinder:
                 geom,attrs = self.countryfinder.get_country_by_code(fp)
                 name = attrs['NAME']
                 focus_objs.append((geom,attrs,'country'))
@@ -153,7 +156,10 @@ class StationMapper(object):
         lonmin, latmin, lonmax, latmax = mp.bounds
         self.center_lon,self.center_lat = (lonmin+lonmax)/2, (latmin+latmax)/2
         self.focus_extent = lonmin, lonmax, latmin, latmax
-        self.calc_zoom()
+        if preset_zoom is None:
+            self.calc_zoom()
+        else:
+            self.zoom = preset_zoom
         
         if len(focus_names)<3:
             self.mapname = " & ".join(focus_names)
