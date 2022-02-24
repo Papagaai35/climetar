@@ -107,7 +107,7 @@ class Quantity(object):
         if (    isinstance(conversion, numbers.Real) and
                 isinstance(value, numbers.Real)):
             return value * conversion
-        elif isinstance(conversion, collections.Iterable):
+        elif isinstance(conversion, collections.abc.Iterable):
             return conversion[0](value)
         else:
             raise ValueError('Could not %s convert from %s',(value,unit))
@@ -118,7 +118,7 @@ class Quantity(object):
         if (    isinstance(conversion, numbers.Real) and
                 isinstance(value, numbers.Real)):
             return value / conversion
-        elif isinstance(conversion, collections.Iterable):
+        elif isinstance(conversion, collections.abc.Iterable):
             return conversion[1](value)
         else:
             raise ValueError('Could not %s convert to %s',(value,unit))
