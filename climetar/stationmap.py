@@ -141,7 +141,7 @@ class StationMapper(object):
                 points.append(geom)
             else:
                 lonmin, latmin, lonmax, latmax = geom.bounds
-                if 'multi' in geom.geom_type.lower() and len(geom)>1 and (lonmin+360-lonmax<5):
+                if 'multi' in geom.geom_type.lower() and len(geom.geoms)>1 and (lonmin+360-lonmax<5):
                     polygon_bounds = np.array([list(p.bounds) for p in list(geom)])
                     lonmin = np.nanmin(np.where(polygon_bounds[:,0]>-179,polygon_bounds[:,0],np.nan))
                     lonmax = np.nanmax(np.where(polygon_bounds[:,2]<179,polygon_bounds[:,2],np.nan)+360)
