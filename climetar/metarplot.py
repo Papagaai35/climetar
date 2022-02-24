@@ -356,7 +356,7 @@ class MetarPlotter(object):
         }).reset_index(drop=True)
     def get_days_of_periods_below_threshold(self,col,thresholds,min_minutes_valid=30,min_number_of_observations=3):
         dft = self.pdf.copy().sort_values('time')
-        belowth_dict = {'all':pd.Series(index=dft.time.dt.normalize().unique())}
+        belowth_dict = {'all':pd.Series(index=dft.time.dt.normalize().unique(), dtype='float')}
         for i,th in enumerate(thresholds):
             dftg = self.consecutive_below_threshold(dft,col,th,min_number_of_observations)
             dftg = dftg.loc[dftg.minutes_valid>min_minutes_valid].reset_index()
@@ -367,7 +367,7 @@ class MetarPlotter(object):
                     if date in belowth_dict[th].index:
                         belowth_dict[th].at[date] = min(belowth_dict[th].at[date],row[col+'_max'])
                     else:
-                        belowth_dict[th].append(pd.Series(row[col+'_max'],index=[date]))
+                        belowth_dict[th] = pd.concat([belowth_dict[th],pd.Series(row[col+'_max'],index=[date])])
             belowth_dict[th] = belowth_dict[th].sort_index()
         dfg = pd.concat(belowth_dict,axis=1,sort=True).reset_index().rename(columns={'index':'time'})
         dfg['time'] = pd.to_datetime(dfg.time)
@@ -420,7 +420,7 @@ class MetarPlotter(object):
             gbo = data_gbo.dropna(subset=['wind_dir_rad']).groupby('wind_dir_rad')
         data = gbo['wind_spd'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.iloc[0].rename(2*np.pi))
+        data = pd.concat([data,data.loc[0:0].rename(index={0:2*np.pi})])
         ax.plot(data[.5],**style[0])
         ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
         ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,**style[2])
@@ -466,7 +466,7 @@ class MetarPlotter(object):
             gbo = self.pdf.dropna(subset=[variable]).groupby(self.pdf.time.dt.hour)
             data = gbo[variable].quantile([.01,.05,.25,.5,.75,.95,.99])
             data = self.convert_unit(quantity.units[unit],data).unstack()
-            data = data.append(data.iloc[0].rename(24))
+            data = pd.concat([data,data.loc[0:0].rename(index={0:24})])
             ax.plot(data[.5],**style[0])
             ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
             ax.fill_between(x=data.index,y1=data[.05],y2=data[.25],zorder=-1,**style[2])
@@ -745,8 +745,7 @@ class MetarPlotter(object):
             style = self.theme.get_ci(var)
             data = gbo[var].quantile([.01,.05,.25,.5,.75,.95,.99])
             data = self.convert_unit(quantity.units[unit],data).unstack()
-            data = data.append(data.loc[1].rename(13))
-            data = data.append(data.loc[12].rename(0))
+            data = pd.concat([data.loc[12:12].rename(index={12:0}),data,data.loc[1:1].rename(index={1:13})])
             data = data.sort_index()
             ax.plot(data[.5],**style[0])
             ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
@@ -785,8 +784,7 @@ class MetarPlotter(object):
 
         data = gbo['wcet'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.loc[1].rename(13))
-        data = data.append(data.loc[12].rename(0))
+        data = pd.concat([data.loc[12:12].rename(index={12:0}),data,data.loc[1:1].rename(index={1:13})])
         data = data.sort_index()
         ax.plot(data[.5],**style[0])
         ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
@@ -834,8 +832,7 @@ class MetarPlotter(object):
         gbo = dailydata.groupby(dailydata.time.dt.month)
         data = gbo['wbgt'].quantile([.005,.05,.25,.5,.75,.95,.995])
         data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.loc[1].rename(13))
-        data = data.append(data.loc[12].rename(0))
+        data = pd.concat([data.loc[12:12].rename(index={12:0}),data,data.loc[1:1].rename(index={1:13})])
         data = data.sort_index()
         ax.plot(data[.5],**style[0])
         ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
@@ -866,8 +863,7 @@ class MetarPlotter(object):
 
         data = gbo['relh'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.loc[1].rename(13))
-        data = data.append(data.loc[12].rename(0))
+        data = pd.concat([data.loc[12:12].rename(index={12:0}),data,data.loc[1:1].rename(index={1:13})])
         data = data.sort_index()
         ax.plot(data[.5],**style[0])
         ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
@@ -894,8 +890,7 @@ class MetarPlotter(object):
 
         data = gbo['vis'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.loc[1].rename(13))
-        data = data.append(data.loc[12].rename(0))
+        data = pd.concat([data.loc[12:12].rename(index={12:0}),data,data.loc[1:1].rename(index={1:13})])
         data = data.sort_index()
         ax.plot(data[.5],**style[0])
         ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
@@ -922,8 +917,7 @@ class MetarPlotter(object):
 
         data = gbo['sky_ceiling'].quantile([.01,.05,.25,.5,.75,.95,.99])
         data = self.convert_unit(quantity.units[unit],data).unstack()
-        data = data.append(data.loc[1].rename(13))
-        data = data.append(data.loc[12].rename(0))
+        data = pd.concat([data.loc[12:12].rename(index={12:0}),data,data.loc[1:1].rename(index={1:13})])
         data = data.sort_index()
         ax.plot(data[.5],**style[0])
         ax.fill_between(x=data.index,y1=data[.25],y2=data[.75],zorder=-1,**style[1])
