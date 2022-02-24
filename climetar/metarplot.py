@@ -1984,7 +1984,7 @@ class CountryFinder(object):
         for i,r in df.iterrows():
             geo_list = [(cgeom[g[2:]].geometry if g[0]=='c' else ugeom[g[2:]].geometry) for g in r.geometries.split(',')]
             if len(geo_list)>1:
-                geometries[r.key] = shapely.ops.cascaded_union(geo_list)
+                geometries[r.key] = shapely.ops.unary_union(geo_list)
             else:
                 geometries[r.key] = geo_list[0]
         self.geometries = geometries
@@ -1996,7 +1996,7 @@ class CountryFinder(object):
                 continue
             geo_list = [(cgeom[g[2:]].geometry if g[0]=='c' else ugeom[g[2:]].geometry) for g in r.geometries.split(',')]
             if len(geo_list)>1:
-                all_geometries[r.key] = shapely.ops.cascaded_union(geo_list)
+                all_geometries[r.key] = shapely.ops.unary_union(geo_list)
             else:
                 all_geometries[r.key] = geo_list[0]
         self.all_geometries = all_geometries
