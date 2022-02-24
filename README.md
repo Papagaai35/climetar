@@ -5,24 +5,13 @@ Daarnaast is CliMETAR in staat om klimaat- en hoogtekaarten te produceren van de
 
 CliMETAR is ontwikkeld door de Joint Meteorologische Groep, in 2020/2021.
 
-## Onwikkeling
-Ondanks dat de ontwikkeling van CliMETAR in een vergevorderd statium is, moeten er nog wel een paar dingen gebeuren:
-* [ ] Spellingscontrole van de huidige documentatie
-* [ ] Script om de datakwaliteit & -kwantiteit van een bepaald station inzichtelijk te maken.
-
 ## Gebruik
 CliMETAR kan gebruikt worden in eeh Jupyter-omgeving, zoals [mybinder.org](https://mybinder.org/) .
 
-1. Ga naar Jupyter.
-2. Kies voor de **Machine Learning**-omgeving, en klik op de 'Aanmaken'-knop onderaan de pagina.
-3. Op het scherm dat verschijnt, kies Terminal
-4. Tik de volgende opdracht in, en druk op <b>Enter</b>:
-```
-git clone https://github.com/Papagaai35/climetar.git
-```
-5. Na enkele momenten verschijnt er links in de zijbalk een map `climetar`. Open deze map en open het notebook `00. Installeren & Introductie.ipynb` (dmv dubbelklik)
-
-Mocht je hierin een foutje hebben gemaakt, volg dan de stappen uit [Uninstall.md](resources/Uninstall.md).
+1. Ga naar [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Papagaai35/climetar/HEAD)
+2. Wacht tot de repository is gestart, dit kan +5 minuten duren.
+2b. Lees onderaan de startpagina alvast `00. Installeren & Introductie.ipynb`.
+3. Open het notebook `00. Installeren & Introductie.ipynb` (voor een introductie), of start meteen met `10. Downlaoding METARs.ipynb` (als je Jupyter al kent).
 
 In het eerste notebook `00. Installeren & Introductie.ipynb` wordt ook een korte introductie gegeven op Jupyter. Voor meer info:
 * [JupyterLab Documentatie](https://jupyterlab.readthedocs.io) (via Internet; Engels)
@@ -31,7 +20,7 @@ In het eerste notebook `00. Installeren & Introductie.ipynb` wordt ook een korte
 * Metar Berichten:
   ASOS-AWOS Network van Iowa Environmental Mesonet, Iowa State University ([https://mesonet.agron.iastate.edu/request/download.phtml](https://mesonet.agron.iastate.edu/request/download.phtml))
 * Kaartmateriaal:
-   * Basiskaartmateriaal (landen, grenzen ect.): Natural Earth [naturalearthdata.com](https://www.naturalearthdata.com/).
+   * Basiskaartmateriaal (landen, grenzen ect.): Natural Earth [naturalearthdata.com](https://www.naturalearthdata.com/). Please note: Natural Earth Vector draws boundaries of countries according to defacto status. We show who actually controls the situation on the ground.
    * Kimaatkaart (Köppen-Geiger): Beck, H.E., N.E. Zimmermann, T.R. McVicar, N. Vergopolan, A. Berg, E.F. Wood, (2018); Present and future Köppen-Geiger climate classification maps at 1‑km resolution, Scientific Data 5:180214, [doi:10.1038/sdata.2018.214](https://www.doi.org/10.1038/sdata.2018.214).
    Data gedownload van [www.gloh2o.org/koppen/](http://www.gloh2o.org/koppen/)
 
