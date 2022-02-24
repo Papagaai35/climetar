@@ -473,7 +473,7 @@ class StationMapper(object):
         return imc
     def get_koppen_geiger_climate(self,margin=None):
         PIL.Image.MAX_IMAGE_PIXELS = None
-        filename = self.kg_files + ('Beck_KG_V1_present_0p083.tif' if self.zoom<=1.5 else f'Beck_KG_V1_present_0p0083.tif')
+        filename = self.kg_files + ('Beck_KG_V1_present_0p083.tif' if self.zoom<=1.5 else f'Beck_KG_V1_present_0p083.tif')
         self.set_extent_to_map()
         extent = self.get_outer_extent()
         if margin is None:
